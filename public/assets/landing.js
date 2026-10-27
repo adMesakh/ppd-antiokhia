@@ -82,12 +82,23 @@
     $("#strip").innerHTML = photos.slice(0, 3).map((p) => `<div class="shot"><img src="${esc(p.url)}" alt=""></div>`).join("");
   }
 
+  // Foto pembicara dimulai tepat di bawah teks kartu (nama panjang = foto turun), supaya wajah tidak tertutup tulisan.
+  function fitLineupPhotos() {
+    const fit = () => document.querySelectorAll(".scard.has-photo").forEach((card) => {
+      const txt = card.querySelector(":scope > div"); if (!txt) return;
+      const top = txt.offsetTop + txt.offsetHeight - 24;
+      card.style.setProperty("--photo-top", Math.min(top, card.clientHeight * 0.55) + "px");
+    });
+    fit();
+    if (!window.__rpkFit) { window.__rpkFit = true; window.addEventListener("resize", fit); if (document.fonts) document.fonts.ready.then(fit); }
+  }
+
   // ---------- Lineup ----------
   const TIER = { utama: "Pembicara utama", pembicara: "Pembicara", tamu: "Bintang tamu" };
   function renderLineup(list) {
     if (!list.length) return;
     $("#stage").innerHTML = list.map((p, i) => `
-      <article class="scard">
+      <article class="scard${p.photo_url ? " has-photo" : ""}">
         <canvas data-art data-seed="${101 + i * 17}" data-theme="${THEMES[(i + 2) % THEMES.length]}"></canvas>${p.photo_url
           ? `<img class="photo face" src="${esc(p.photo_url)}" alt="Foto ${esc(p.name)}" loading="lazy" decoding="async" onerror="this.remove()">`
           : PH ? PH.img(PH.lineup[i % PH.lineup.length], 800) : ""}
@@ -102,6 +113,7 @@
           <button type="button" class="icon-btn" data-share="${esc(p.name)}" aria-label="Bagikan">${icon("share")}</button>
         </div>
       </article>`).join("");
+    fitLineupPhotos();
     $("#stage").onclick = async (e) => {
       const b = e.target.closest("[data-share]"); if (!b) return;
       const text = `${b.dataset.share} di ${S.event_name}. Daftar: ${location.origin}/#daftar`;
