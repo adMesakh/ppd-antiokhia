@@ -270,7 +270,7 @@
   function sessionBody(b) {
     const title = clean(b.title), day = Number(b.day), t = (v) => /^\d{2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
     if (!title || !["checkin", "seminar"].includes(b.kind) || !Number.isInteger(day) || day < 1 || day > 14) throw E(400, "Isi judul, jenis, dan hari ke-berapa.");
-    return { title, kind: b.kind, day, starts_at: t(b.starts_at), ends_at: t(b.ends_at), location: clean(b.location, 80), speaker: clean(b.speaker, 80) };
+    return { title, kind: b.kind, day, starts_at: t(b.starts_at), ends_at: t(b.ends_at), location: clean(b.location, 80), speaker: clean(b.speaker, 80), topic: clean(b.topic, 160) };
   }
   on("GET", /^\/api\/admin\/sessions$/, () => [...D.sessions].sort(sortSessions).map((s) => ({ ...s, scans: D.attendance.filter((a) => a.session_id === s.id).length })));
   on("POST", /^\/api\/admin\/sessions$/, (m, q, b) => { D.sessions.push({ id: nid("sessions"), ...sessionBody(b), created_at: now() }); return { ok: true }; });

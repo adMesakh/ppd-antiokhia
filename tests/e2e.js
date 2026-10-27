@@ -62,15 +62,16 @@ async function api(method, url, body, cookie) {
     const cookie = (await adminCtx.cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
 
     await admin.goto(BASE + "/admin/#jadwal");
-    const addSession = async (title, kind, day, start) => {
+    const addSession = async (title, kind, day, start, speaker = "", topic = "") => {
       await admin.click("#newS");
       await admin.fill("#sf [name=title]", title); await admin.selectOption("#sf [name=kind]", kind);
+      if (speaker) await admin.fill("#sf [name=speaker]", speaker); if (topic) await admin.fill("#sf [name=topic]", topic);
       await admin.fill("#sf [name=day]", String(day)); await admin.fill("#sf [name=starts_at]", start);
       await admin.click("#sf button.primary"); await admin.waitForSelector("dialog[open]", { state: "detached" }).catch(() => {});
       await admin.waitForTimeout(300);
     };
     await addSession("Registrasi ulang", "checkin", 1, "08:00");
-    await addSession("Seminar 1: Identitas", "seminar", 1, "10:00");
+    await addSession("Seminar 1: Identitas", "seminar", 1, "10:00", "Ev. Maria Tan", "Identitas di dalam Kristus");
     await addSession("Seminar 2: Panggilan", "seminar", 2, "09:00");
     check((await api("GET", "/api/admin/sessions", null, cookie)).data.length === 3, "Admin membuat 3 sesi lewat form");
 
@@ -402,13 +403,23 @@ async function api(method, url, body, cookie) {
     const shown = await wp.evaluate(() => ({ p: document.querySelector("#kPeserta").textContent, g: document.querySelector("#kGereja").textContent, v: document.querySelector("#kVisit").textContent, top: document.querySelector("#rank .nm").textContent, feed: document.querySelectorAll("#feed li:not([hidden])").length, now: document.querySelector("#now").innerText, overflow: document.documentElement.scrollHeight > innerHeight + 2 }));
     check(shown.p === wb.data.participants.toLocaleString("id-ID") && shown.g === String(wb.data.churches) && shown.v === wb.data.visitors.toLocaleString("id-ID") && shown.top === wb.data.top_churches[0].church && shown.feed > 0 && !shown.overflow,
       `Wallboard TV: ${shown.p} peserta, ${shown.g} gereja, ${shown.v} pengunjung, teratas ${shown.top}, muat satu layar 1080p`);
-    check(/Belum dimulai/.test(shown.now) && /Registrasi ulang/i.test(shown.now), "Acara berlangsung: sebelum acara menampilkan sesi pertama (" + shown.now.replace(/\s+/g, " ").trim() + ")");
+    const panel = () => wp.evaluate(() => ({ tag: document.querySelector("#nowTag").innerText, now: document.querySelector("#now").innerText, next: document.querySelector("#next").innerText, h: [document.querySelector(".mid > .card"), ...document.querySelectorAll(".stack > .card")].map((e) => e.getBoundingClientRect()) }));
+    const pre = await panel();
+    check(/Belum dimulai/.test(pre.tag) && /Registrasi ulang/i.test(pre.next), "Sebelum acara: 'Belum dimulai', kartu Acara berikutnya menampilkan sesi pertama");
+    check(Math.abs(pre.h[0].top - pre.h[1].top) < 1 && Math.abs(pre.h[0].bottom - pre.h[2].bottom) < 1 && pre.h[2].height < pre.h[1].height,
+      "Kartu Acara berlangsung + Acara berikutnya (lebih kecil) setinggi kartu Peserta terbanyak");
     // saat acara: sesi yang jamnya sedang berjalan tampil beserta jumlah hadir
     await wp.clock.install({ time: new Date(wb.data.sessions.find((x) => x.title === "Registrasi ulang").start).getTime() + 30 * 60e3 });
     await wp.reload(); await wp.waitForSelector("#now .title"); await wp.waitForTimeout(800);
-    const live = await wp.evaluate(() => document.querySelector("#now").innerText);
     const reg = wb.data.sessions.find((x) => x.title === "Registrasi ulang");
-    check(/Sedang berlangsung/.test(live) && /Registrasi ulang/i.test(live) && live.includes(String(reg.present)) && /Berikutnya/.test(live), `Acara berlangsung saat jam sesi: ${live.replace(/\s+/g, " ").trim()}`);
+    const live = await panel();
+    check(/Sedang berlangsung/.test(live.tag) && /Registrasi ulang/i.test(live.now) && /daftar ulang/i.test(live.now) && live.now.includes(String(reg.present)) && /Seminar 1/i.test(live.next),
+      `Check-in berlangsung: ${live.now.replace(/\s+/g, " ").trim()} · berikutnya ${live.next.replace(/\s+/g, " ").trim()}`);
+    const sem = wb.data.sessions.find((x) => x.title.startsWith("Seminar 1"));
+    await wp.clock.setSystemTime(new Date(sem.start).getTime() + 10 * 60e3); await wp.reload(); await wp.waitForSelector("#now .facts"); await wp.waitForTimeout(600);
+    const semNow = await panel();
+    check(/Ev\. Maria Tan/.test(semNow.now) && /Identitas di dalam Kristus/.test(semNow.now) && /hadir/i.test(semNow.now) && /Seminar 2/i.test(semNow.next),
+      `Seminar berlangsung menampilkan pembicara, topik, peserta hadir: ${semNow.now.replace(/\s+/g, " ").trim()}`);
     check(!JSON.stringify(wb.data).includes("Pdt. Yohanes") && !JSON.stringify(wb.data).includes("0812"), "Wallboard tidak memuat nama atau nomor WA peserta");
     await wp.screenshot({ path: path.join(SHOTS, "wallboard-1080p.png") });
 

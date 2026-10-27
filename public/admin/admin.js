@@ -445,7 +445,7 @@
       <div class="head"><div><h1>Jadwal &amp; kehadiran</h1><p class="muted">Sesi di sini yang dipilih petugas scanner. Klik sebuah sesi untuk melihat siapa saja yang hadir. Jenis <b>Seminar</b> dihitung untuk nominasi gereja paling aktif; <b>Check-in</b> untuk registrasi ulang.</p></div>
         <div class="head-actions"><a class="btn" href="/api/admin/export/attendance.csv">Unduh CSV kehadiran</a><button class="btn" id="addA">+ Catat manual</button><button class="btn primary" id="newS">+ Sesi baru</button></div></div>
       ${days.length ? days.map((d) => `<div class="daygroup"><h3>Hari ${d}</h3><div class="table-wrap"><table><thead><tr><th>Jam</th><th>Sesi</th><th>Jenis</th><th>Lokasi</th><th>Pembicara</th><th>Hadir</th><th></th></tr></thead><tbody>
-        ${list.filter((s) => s.day === d).map((s) => `<tr class="clickable" data-open="${s.id}"><td class="num">${esc(s.starts_at || "—")}${s.ends_at ? "–" + esc(s.ends_at) : ""}</td><td><b>${esc(s.title)}</b></td><td><span class="pill ${s.kind}">${KIND[s.kind]}</span></td><td>${esc(s.location)}</td><td>${esc(s.speaker)}</td><td class="num"><b>${s.scans}</b></td>
+        ${list.filter((s) => s.day === d).map((s) => `<tr class="clickable" data-open="${s.id}"><td class="num">${esc(s.starts_at || "—")}${s.ends_at ? "–" + esc(s.ends_at) : ""}</td><td><b>${esc(s.title)}</b>${s.topic ? `<span class="sub">${esc(s.topic)}</span>` : ""}</td><td><span class="pill ${s.kind}">${KIND[s.kind]}</span></td><td>${esc(s.location)}</td><td>${esc(s.speaker)}</td><td class="num"><b>${s.scans}</b></td>
           <td class="actions"><a class="btn sm primary" href="#jadwal/${s.id}">Detail kehadiran</a> <button class="btn sm" data-edit="${s.id}">Ubah</button> <button class="btn sm danger" data-del="${s.id}">Hapus</button></td></tr>`).join("")}
         </tbody></table></div></div>`).join("") : `<div class="card empty">Belum ada sesi. Tambahkan minimal satu sesi Check-in (registrasi ulang) dan sesi-sesi Seminar.</div>`}
       <p class="muted">Data kehadiran masuk setelah HP scanner tersinkron. Setiap kali jadwal berubah, petugas scanner perlu menekan <b>Unduh ulang data</b> saat ada koneksi.</p>`;
@@ -520,7 +520,8 @@
         <label>Mulai<input name="starts_at" type="time" value="${esc(s?.starts_at || "")}"></label>
         <label>Selesai<input name="ends_at" type="time" value="${esc(s?.ends_at || "")}"></label>
         <label>Lokasi<input name="location" value="${esc(s?.location || "")}" placeholder="mis. Aula utama"></label>
-        <label>Pembicara<input name="speaker" value="${esc(s?.speaker || "")}"></label>
+        <label>Pembicara<input name="speaker" value="${esc(s?.speaker || "")}" placeholder="Kosongkan untuk Check-in"></label>
+        <label class="span2">Topik<input name="topic" value="${esc(s?.topic || "")}" placeholder="mis. Identitas di dalam Kristus"></label>
         <div class="dlg-foot" style="grid-column:1/-1"><button type="button" class="btn" data-close>Batal</button><button class="btn primary">Simpan</button></div>
       </form>`);
     $("#sf", body).onsubmit = async (e) => {

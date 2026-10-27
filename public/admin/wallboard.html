@@ -55,19 +55,30 @@ h2{font:800 clamp(16px,1.5vw,32px)/1 var(--num);text-transform:uppercase;letter-
 .rank .bar{grid-column:2/4;height:.55vw;min-height:6px;border-radius:99px;background:var(--panel2);overflow:hidden}
 .rank .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#B85A1E,var(--orange));transition:width 1s ease}
 
-/* acara berlangsung */
-.now{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.8vw;min-height:0}
-.now .tag{align-self:flex-start;display:inline-flex;align-items:center;gap:.5vw;padding:.3vw .9vw;border-radius:99px;font:700 clamp(11px,.9vw,18px) var(--body);background:rgba(88,201,138,.14);color:var(--green)}
-.now .tag i{width:.6vw;height:.6vw;min-width:8px;min-height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
-.now .tag.wait{background:var(--panel2);color:var(--muted)}.now .tag.wait i{animation:none}
+/* acara berlangsung + berikutnya: dua kartu yang tingginya sama dengan kartu peserta terbanyak */
+.mid{align-items:stretch}
+.stack{display:grid;grid-template-rows:minmax(0,1.9fr) minmax(0,1fr);gap:var(--g);min-height:0}
+.now{flex:1;display:flex;flex-direction:column;gap:.55vw;min-height:0}
+.tag{align-self:flex-start;display:inline-flex;align-items:center;gap:.5vw;padding:.3vw .9vw;border-radius:99px;font:700 clamp(11px,.85vw,17px) var(--body);background:rgba(88,201,138,.14);color:var(--green)}
+.tag i{width:.6vw;height:.6vw;min-width:8px;min-height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+.tag.wait{background:var(--panel2);color:var(--muted)}.tag.wait i{animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(88,201,138,.6)}70%{box-shadow:0 0 0 .8vw rgba(88,201,138,0)}100%{box-shadow:0 0 0 0 rgba(88,201,138,0)}}
-.now .title{font:900 clamp(30px,3.8vw,80px)/1 var(--num);text-transform:uppercase}
-.now .meta{color:var(--muted);font-weight:600;font-size:clamp(12px,1.15vw,24px)}
-.now .present{display:flex;align-items:baseline;gap:.8vw;margin-top:.4vw}
-.now .present b{font:900 clamp(36px,4.6vw,96px)/1 var(--num);color:var(--orange);font-variant-numeric:tabular-nums}
-.now .present span{color:var(--muted);font-weight:600;font-size:clamp(12px,1.15vw,24px)}
-.now .next{margin-top:auto;padding-top:.9vw;border-top:1px solid var(--line);color:var(--muted);font-weight:600;font-size:clamp(11px,1vw,21px)}
-.now .next b{color:var(--ink)}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:1vw}
+.hrow .tag{text-transform:none;letter-spacing:0}
+.now .title{font:900 clamp(24px,2.9vw,62px)/1 var(--num);text-transform:uppercase}
+.now .meta,.nx .meta{color:var(--muted);font-weight:600;font-size:clamp(11px,1vw,21px)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8vw;margin-top:auto}
+.fact{background:var(--panel2);border-radius:.9vw;padding:.6vw .9vw;min-width:0}
+.fact span{display:block;color:var(--dim);font-weight:700;font-size:clamp(10px,.75vw,15px);text-transform:uppercase;letter-spacing:.06em}
+.fact b{display:block;margin-top:.25vw;font-weight:700;font-size:clamp(12px,1.1vw,23px);line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fact.num b{font:900 clamp(22px,2.4vw,50px)/1 var(--num);color:var(--orange);font-variant-numeric:tabular-nums}
+.fact.num b small{font:600 clamp(10px,.8vw,16px) var(--body);color:var(--muted);margin-left:.3vw}
+.facts.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.nextcard{padding-top:.9vw;padding-bottom:.9vw}
+.nextcard h2{font-size:clamp(12px,1.05vw,22px);margin-bottom:.5vw}
+.nx{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.3vw;min-height:0}
+.nx .title{flex:none;font:800 clamp(18px,1.8vw,38px)/1.1 var(--num);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nx .meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* pendaftaran terbaru */
 .recent{padding-bottom:1vw}
@@ -101,7 +112,10 @@ h2{font:800 clamp(16px,1.5vw,32px)/1 var(--num);text-transform:uppercase;letter-
 
   <section class="mid">
     <div class="card"><h2>Peserta terbanyak</h2><ol class="rank" id="rank"></ol></div>
-    <div class="card"><h2>Acara berlangsung</h2><div class="now" id="now"></div></div>
+    <div class="stack">
+      <div class="card"><h2 class="hrow">Acara berlangsung <span id="nowTag"></span></h2><div class="now" id="now"></div></div>
+      <div class="card nextcard"><h2>Acara berikutnya</h2><div class="nx" id="next"></div></div>
+    </div>
   </section>
 
   <section class="card recent"><h2>Pendaftaran terbaru</h2><ul class="feed" id="feed"></ul></section>
@@ -141,31 +155,47 @@ h2{font:800 clamp(16px,1.5vw,32px)/1 var(--num);text-transform:uppercase;letter-
     return Math.floor(s / 86400) < 7 ? Math.floor(s / 86400) + " hari lalu" : tgl(iso);
   };
 
-  // ---------- acara berlangsung (mengikuti jadwal sesi) ----------
+  // ---------- acara berlangsung & berikutnya (mengikuti jadwal sesi) ----------
+  const sameDay = (a, b) => wib(a).toISOString().slice(0, 10) === wib(b).toISOString().slice(0, 10);
+  const whenNext = (s, t) => {
+    const st = new Date(s.start).getTime(), tom = sameDay(st, t + 864e5);
+    return `${sameDay(st, t) ? "Hari ini" : tom ? "Besok" : `Hari ${s.day}, ${tgl(s.start)}`} · ${hm(s.start)}`;
+  };
   function renderNow() {
     if (!D) return;
-    const t = Date.now(), list = D.sessions;
+    const t = Date.now(), list = D.sessions, total = D.paid;
     const cur = list.find((s) => new Date(s.start).getTime() <= t && t < new Date(s.end).getTime());
-    const next = list.find((s) => new Date(s.start).getTime() > t);
-    const when = (s) => `Hari ${s.day} · ${hm(s.start)}–${hm(s.end)}${s.location ? " · " + esc(s.location) : ""}`;
-    const nextLine = next ? `<div class="next">Berikutnya: <b>${esc(next.title)}</b> · ${new Date(next.start).toDateString() === new Date(t).toDateString() ? hm(next.start) : tgl(next.start) + ", " + hm(next.start)}</div>` : "";
-    let html;
+    const upcoming = list.filter((s) => new Date(s.start).getTime() > t);
+    const fact = (label, val, cls = "") => val ? `<div class="fact ${cls}"><span>${label}</span><b>${val}</b></div>` : "";
+    let html, tag;
     if (cur) {
-      html = `<span class="tag"><i></i>Sedang berlangsung</span>
-        <div class="title">${esc(cur.title)}</div>
-        <div class="meta">${when(cur)}${cur.speaker ? "<br>" + esc(cur.speaker) : ""}</div>
-        <div class="present"><b>${fmt(cur.present)}</b><span>hadir</span></div>${nextLine}`;
+      const checkin = cur.kind === "checkin";
+      const facts = checkin
+        ? fact("Sudah daftar ulang", `${fmt(cur.present)}<small>dari ${fmt(total)}</small>`, "num")
+        : fact("Pembicara", esc(cur.speaker)) + fact("Topik", esc(cur.topic)) + fact("Peserta hadir", `${fmt(cur.present)}<small>dari ${fmt(total)}</small>`, "num");
+      const n = (facts.match(/class="fact/g) || []).length;
+      tag = `<span class="tag"><i></i>Sedang berlangsung</span>`;
+      html = `<div class="title">${esc(cur.title)}</div>
+        <div class="meta">Hari ${cur.day} · ${hm(cur.start)}–${hm(cur.end)}${cur.location ? " · " + esc(cur.location) : ""}</div>
+        <div class="facts${n === 2 ? " two" : ""}"${n === 1 ? ' style="grid-template-columns:minmax(0,1fr)"' : ""}>${facts}</div>`;
     } else if (!list.length) {
-      html = `<span class="tag wait"><i></i>Belum ada jadwal</span><div class="meta">Tambahkan sesi di menu Jadwal &amp; kehadiran.</div>`;
-    } else if (next) {
-      const first = next === list[0];
-      html = `<span class="tag wait"><i></i>${first ? "Belum dimulai" : "Jeda"}</span>
-        <div class="title">${esc(next.title)}</div>
-        <div class="meta">Mulai ${tgl(next.start)}, ${hm(next.start)}${next.location ? " · " + esc(next.location) : ""}</div>`;
+      tag = `<span class="tag wait"><i></i>Belum ada jadwal</span>`;
+      html = `<div class="meta">Tambahkan sesi di menu Jadwal &amp; kehadiran.</div>`;
+    } else if (upcoming.length) {
+      tag = `<span class="tag wait"><i></i>${upcoming[0] === list[0] ? "Belum dimulai" : "Jeda"}</span>`;
+      html = `<div class="title">Belum ada acara</div><div class="meta">Acara berikutnya mulai ${whenNext(upcoming[0], t).toLowerCase()}.</div>`;
     } else {
-      html = `<span class="tag wait"><i></i>Selesai</span><div class="title">Semua acara selesai</div><div class="meta">Terima kasih!</div>`;
+      tag = `<span class="tag wait"><i></i>Selesai</span>`;
+      html = `<div class="title">Semua acara selesai</div><div class="meta">Terima kasih!</div>`;
     }
     if ($("#now").innerHTML !== html) $("#now").innerHTML = html;
+    if ($("#nowTag").innerHTML !== tag) $("#nowTag").innerHTML = tag;
+    const nx = upcoming[0];
+    const nhtml = nx ? `<div class="title">${esc(nx.title)}</div>
+      <div class="meta">${whenNext(nx, t)}${nx.location ? " · " + esc(nx.location) : ""}</div>
+      ${nx.speaker || nx.topic ? `<div class="meta">${esc([nx.speaker, nx.topic].filter(Boolean).join(" · "))}</div>` : ""}`
+      : `<div class="meta">Tidak ada lagi acara.</div>`;
+    if ($("#next").innerHTML !== nhtml) $("#next").innerHTML = nhtml;
   }
   setInterval(renderNow, 15000);
 

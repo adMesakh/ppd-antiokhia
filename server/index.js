@@ -60,7 +60,7 @@ app.get("/api/public", h(async (req, res) => {
   const [churches, lineup, sessions, photos, counts] = await Promise.all([
     many("SELECT id, name, city FROM churches ORDER BY lower(name)"),
     many("SELECT id, name, tier, note, photo_url FROM lineup ORDER BY CASE tier WHEN 'utama' THEN 0 WHEN 'pembicara' THEN 1 ELSE 2 END, sort, id"),
-    many("SELECT id, title, kind, day, starts_at, ends_at, location, speaker FROM sessions ORDER BY day, starts_at, id"),
+    many("SELECT id, title, kind, day, starts_at, ends_at, location, speaker, topic FROM sessions ORDER BY day, starts_at, id"),
     many("SELECT id, url, caption, width, height FROM photos ORDER BY created_at DESC, id DESC LIMIT 60"),
     one(`SELECT COUNT(DISTINCT r.church_id)::int AS churches, COUNT(p.id)::int AS participants
          FROM registrations r LEFT JOIN participants p ON p.registration_id = r.id WHERE r.status = 'lunas'`),
@@ -285,7 +285,7 @@ A.get("/wallboard", async (req, res) => {
           GROUP BY c.id, c.name, c.city ORDER BY n DESC, lower(c.name) LIMIT 8`),
     many(`SELECT r.id, r.created_at, c.name AS church, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
           FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 10`),
-    many(`SELECT s.id, s.title, s.kind, s.day, s.starts_at, s.ends_at, s.location, s.speaker,
+    many(`SELECT s.id, s.title, s.kind, s.day, s.starts_at, s.ends_at, s.location, s.speaker, s.topic,
             (SELECT COUNT(DISTINCT a.participant_id)::int FROM attendance a WHERE a.session_id = s.id) AS present
           FROM sessions s ORDER BY s.day, s.starts_at, s.id`),
   ]);
@@ -583,19 +583,19 @@ function sessionBody(b) {
   const day = Number(b?.day);
   const t = (v) => /^\d{2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
   if (!title || !kind || !Number.isInteger(day) || day < 1 || day > 14) return null;
-  return [title, kind, day, t(b.starts_at), t(b.ends_at), cleanText(b?.location, 80), cleanText(b?.speaker, 80)];
+  return [title, kind, day, t(b.starts_at), t(b.ends_at), cleanText(b?.location, 80), cleanText(b?.speaker, 80), cleanText(b?.topic, 160)];
 }
 A.get("/sessions", async (req, res) => {
   res.json(await many(`SELECT s.*, (SELECT COUNT(*)::int FROM attendance a WHERE a.session_id = s.id) AS scans FROM sessions s ORDER BY day, starts_at, id`));
 });
 A.post("/sessions", jsonSmall, async (req, res) => {
   const v = sessionBody(req.body); if (!v) return bad(res, "Isi judul, jenis, dan hari ke-berapa.");
-  await query("INSERT INTO sessions (title, kind, day, starts_at, ends_at, location, speaker) VALUES ($1, $2, $3, $4, $5, $6, $7)", v);
+  await query("INSERT INTO sessions (title, kind, day, starts_at, ends_at, location, speaker, topic) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", v);
   res.status(201).json({ ok: true });
 });
 A.put("/sessions/:id", jsonSmall, async (req, res) => {
   const v = sessionBody(req.body); if (!v) return bad(res, "Isi judul, jenis, dan hari ke-berapa.");
-  await query("UPDATE sessions SET title=$1, kind=$2, day=$3, starts_at=$4, ends_at=$5, location=$6, speaker=$7 WHERE id=$8", [...v, intId(req.params.id)]);
+  await query("UPDATE sessions SET title=$1, kind=$2, day=$3, starts_at=$4, ends_at=$5, location=$6, speaker=$7, topic=$8 WHERE id=$9", [...v, intId(req.params.id)]);
   res.json({ ok: true });
 });
 A.del("/sessions/:id", async (req, res) => {

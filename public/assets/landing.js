@@ -142,7 +142,7 @@
     const q = $("#sessQ").value.trim().toLowerCase();
     const list = sessions.filter((s) =>
       (dayFilter === "all" || (dayFilter === "checkin" ? s.kind === "checkin" : String(s.day) === dayFilter)) &&
-      (!q || [s.title, s.speaker, s.location].some((x) => String(x || "").toLowerCase().includes(q))));
+      (!q || [s.title, s.topic, s.speaker, s.location].some((x) => String(x || "").toLowerCase().includes(q))));
     const box = $("#sessionCards");
     if (!sessions.length) { box.innerHTML = `<div class="empty">Jadwal sesi diumumkan segera.</div>`; return; }
     if (!list.length) { box.innerHTML = `<div class="empty">Tidak ada sesi yang cocok.</div>`; return; }
@@ -154,7 +154,7 @@
           <span class="kind">${icon("ticket")}${s.kind === "checkin" ? "Registrasi ulang" : "Seminar"} · Hari ${s.day}</span>
           ${s.starts_at ? `<span class="time"><b>${esc(s.starts_at)}</b><small>WIB${s.ends_at ? " · s.d. " + esc(s.ends_at) : ""}</small></span>` : ""}
         </div>
-        <h3>${esc(s.title)}${s.speaker ? `<br><small style="font-size:.8em;font-weight:500;opacity:.85">${esc(s.speaker)}</small>` : ""}</h3>
+        <h3>${esc(s.title)}${s.topic || s.speaker ? `<br><small style="font-size:.8em;font-weight:500;opacity:.85">${esc([s.topic, s.speaker].filter(Boolean).join(" · "))}</small>` : ""}</h3>
         <div class="foot">${s.location ? `<span class="place">${icon("loc")}<span>${esc(s.location)}</span></span>` : ""}</div>
         ${d ? `<span class="dot-date"><b>${d.getUTCDate()}</b><small>${MONTHS[d.getUTCMonth()]}</small></span>` : ""}
       </article>`;

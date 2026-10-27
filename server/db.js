@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS photos (
   width INTEGER, height INTEGER,
   created_at TEXT NOT NULL DEFAULT ${NOW}
 );
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS topic TEXT NOT NULL DEFAULT '';
 ALTER TABLE lineup ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
 -- Usia tidak lagi diminta saat pendaftaran
 ALTER TABLE participants ALTER COLUMN age DROP NOT NULL;
