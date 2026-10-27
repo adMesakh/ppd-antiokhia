@@ -101,6 +101,8 @@ async function api(method, url, body, cookie) {
 
     // ---------- Pendaftaran publik ----------
     const pubCtx = await browser.newContext({ ...devices["Pixel 7"] });
+    // pengunjung ini dulu pernah menekan "hentikan" saat pad bawaan diputar
+    await pubCtx.addInitScript(() => { if (!sessionStorage.getItem("x")) { sessionStorage.setItem("x", 1); localStorage.setItem("rpk-muted-for", "pad"); } });
     const pub = await pubCtx.newPage(); watch(pub, "landing");
     await pub.goto(BASE + "/");
     await pub.waitForSelector(".ecard");
@@ -111,7 +113,7 @@ async function api(method, url, body, cookie) {
     check(/Sukacita Melimpah/.test(await pub.textContent("#npTitle")), "Pemutar menampilkan judul lagu yang diunggah");
     await pub.locator("h1").first().click();
     await pub.waitForFunction(() => /Sedang diputar/.test(document.querySelector("#npState").textContent), null, { timeout: 8000 }).catch(() => {});
-    check(/Sedang diputar/.test(await pub.textContent("#npState")), "Lagu langsung diputar pada sentuhan pertama");
+    check(/Sedang diputar/.test(await pub.textContent("#npState")), "Lagu baru tetap diputar pada sentuhan pertama walau pengunjung pernah menghentikan musik lama");
     await pub.screenshot({ path: path.join(SHOTS, "landing-mobile.png"), fullPage: false });
     await pub.click("#heroCta");
     await pub.waitForURL(/\/daftar\.html/);

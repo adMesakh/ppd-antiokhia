@@ -7,8 +7,9 @@
   if (!btn) return;
   const bars = [...document.querySelectorAll("#vu i")];
   const PLAY = "M8 5v14l11-7z", PAUSE = "M7 5h4v14H7zM13 5h4v14h-4z";
-  let muted = false;
-  try { muted = localStorage.getItem("rpk-muted") === "1"; } catch (_) {}
+  // "Dihentikan" diingat per lagu: lagu baru dari admin tetap diputar walau pengunjung pernah menghentikan lagu lama
+  let muted = false, mutedKey = "";
+  try { mutedKey = localStorage.getItem("rpk-muted-for") || ""; } catch (_) {}
   let playing = false, engine = null;
 
   // --- Mesin pad (WebAudio) ---
@@ -93,7 +94,7 @@
 
   btn.addEventListener("click", () => {
     if (playing) { stop(); muted = true; } else { muted = false; start(); }
-    try { localStorage.setItem("rpk-muted", muted ? "1" : "0"); } catch (_) {}
+    try { localStorage.setItem("rpk-muted-for", muted ? (musicUrl || "pad") : ""); } catch (_) {}
   });
   // Browser hanya mengizinkan suara setelah pengunjung menyentuh, mengklik, atau menekan tombol.
   const GESTURES = ["pointerdown", "keydown", "touchend", "click"];
@@ -117,8 +118,14 @@
 
   window.RPKMusic = {
     configure({ url, label }) {
-      if (url && !engine) musicUrl = url;
       if (label) title.textContent = label;
+      muted = !!mutedKey && mutedKey === (url || "pad");
+      if (url && url !== musicUrl) {
+        musicUrl = url;
+        // Pad bawaan sempat menyala sebelum data website termuat: ganti ke lagu yang diunggah
+        if (engine) { const was = playing; engine.stop(); engine = null; playing = false; ui(); if (was) start(); }
+      }
+      ui();
       tryAutoplay();
     },
   };
