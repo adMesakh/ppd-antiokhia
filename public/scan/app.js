@@ -53,9 +53,30 @@
   ["pointerdown", "touchend", "keydown"].forEach((t) => document.addEventListener(t, unlockAudio, true));
   document.addEventListener("visibilitychange", () => { if (!document.hidden && actx) actx.resume().catch(() => {}); });
 
-  // ok: "ting-ting" naik · dup: dua nada sedang · err: dengung rendah
+  // ok: "jringgg" (lonceng logam bergetar) · dup: dua nada sedang · err: dengung rendah
+  function jring(ctx) {
+    const t = ctx.currentTime + 0.01, len = 1.1;
+    const out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination);
+    // "rrr": volume bergetar cepat seperti lonceng sepeda / bel kasir
+    const trem = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
+    lfo.frequency.value = 26; depth.gain.value = 0.45; trem.gain.value = 0.55;
+    lfo.connect(depth).connect(trem.gain); trem.connect(out); lfo.start(t); lfo.stop(t + len);
+    // "j": desis logam singkat di awal
+    const n = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const ns = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), ng = ctx.createGain();
+    ns.buffer = n; hp.type = "highpass"; hp.frequency.value = 5000; ng.gain.value = 0.35;
+    ns.connect(hp).connect(ng).connect(out); ns.start(t);
+    // "ringgg": nada-nada lonceng terang yang memudar
+    [[1318.5, 0.32], [1975.5, 0.26], [2637, 0.2], [3322, 0.14], [4186, 0.1], [5274, 0.06]].forEach(([f, v], i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f; o.detune.value = (i % 2 ? 7 : -7);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len * (1 - i * 0.1));
+      o.connect(g).connect(trem); o.start(t); o.stop(t + len + 0.05);
+    });
+  }
   const SOUNDS = {
-    ok: [[1046.5, 0, 0.12, "sine"], [1568, 0.11, 0.22, "sine"]],
     dup: [[740, 0, 0.13, "triangle"], [740, 0.2, 0.13, "triangle"]],
     err: [[196, 0, 0.4, "square"]],
   };
@@ -63,7 +84,8 @@
     window.__rpkLastBeep = { kind, at: Date.now(), state: actx ? actx.state : "none" };
     try {
       const ctx = audio();
-      if (ctx) for (const [f, at, dur, type] of SOUNDS[kind] || SOUNDS.err) {
+      if (ctx && kind === "ok") jring(ctx);
+      else if (ctx) for (const [f, at, dur, type] of SOUNDS[kind] || SOUNDS.err) {
         const o = ctx.createOscillator(), g = ctx.createGain();
         o.type = type; o.frequency.value = f;
         const t = ctx.currentTime + 0.01 + at, peak = type === "square" ? 0.18 : 0.6;

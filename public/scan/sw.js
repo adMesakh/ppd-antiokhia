@@ -1,6 +1,6 @@
 // Service worker scanner: menyimpan aplikasi supaya bisa dibuka tanpa internet,
 // dan mengirim scan tertunda di latar belakang begitu HP mendapat koneksi (Background Sync di Chrome Android).
-const VERSION = "rpk-scan-v2";
+const VERSION = "rpk-scan-v3";
 const SHELL = [
   "/scan/",
   "/scan/scan.css",

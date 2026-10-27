@@ -203,7 +203,7 @@ async function api(method, url, body, cookie) {
     await sc.waitForSelector("#result.ok", { timeout: 15000 });
     check((await sc.textContent("#rName")) === "Pdt. Yohanes", "Kamera membaca QR di ID card dan mencatat Pdt. Yohanes (hijau)");
     const bp = await sc.evaluate(() => window.__rpkLastBeep);
-    check(bp && bp.kind === "ok" && bp.state === "running", `Scan berhasil berbunyi "ting-ting" (audio ${bp && bp.state})`);
+    check(bp && bp.kind === "ok" && bp.state === "running", `Scan berhasil berbunyi "jringgg" (audio ${bp && bp.state})`);
     await sc.screenshot({ path: path.join(SHOTS, "scanner-scan-ok.png") });
     await sc.waitForTimeout(3600); // QR yang sama masih di depan kamera setelah jeda → kuning
     await sc.waitForSelector("#result.dup", { timeout: 10000 });
