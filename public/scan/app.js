@@ -53,32 +53,31 @@
   ["pointerdown", "touchend", "keydown"].forEach((t) => document.addEventListener(t, unlockAudio, true));
   document.addEventListener("visibilitychange", () => { if (!document.hidden && actx) actx.resume().catch(() => {}); });
 
-  // ok: "jringgg" (lonceng logam bergetar) · dup: dua nada sedang · err: dengung rendah
-  function jring(ctx) {
-    const t = ctx.currentTime + 0.01, len = 1.6;
-    // dibuat nyaring: dikeraskan lalu ditahan kompresor supaya tidak pecah di speaker HP
+  // ok: bunyi sukses · dup: dua nada sedang · err: dengung rendah
+  // Bunyi "sukses": arpeggio naik bernada lonceng (do-mi-sol-do) lalu kilauan, seperti bunyi berhasil di aplikasi/game.
+  function successSound(ctx, variant) {
+    const t0 = ctx.currentTime + 0.01;
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.3;
-    const makeup = ctx.createGain(); makeup.gain.value = 1.35;
-    const out = ctx.createGain(); out.gain.value = 2.6; out.connect(comp).connect(makeup).connect(ctx.destination);
-    // "rrr": volume bergetar cepat seperti lonceng sepeda / bel kasir
-    const trem = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
-    lfo.frequency.value = 24; depth.gain.value = 0.4; trem.gain.value = 0.55;
-    lfo.connect(depth).connect(trem.gain); trem.connect(out); lfo.start(t); lfo.stop(t + len);
-    // "j": desis logam singkat di awal
-    const n = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate), d = n.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const ns = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), ng = ctx.createGain();
-    ns.buffer = n; hp.type = "highpass"; hp.frequency.value = 5000; ng.gain.value = 0.35;
-    ns.connect(hp).connect(ng).connect(out); ns.start(t);
-    // "ringgg": nada-nada lonceng terang yang memudar
-    [[1318.5, 0.32], [1975.5, 0.26], [2637, 0.2], [3322, 0.14], [4186, 0.1], [5274, 0.06]].forEach(([f, v], i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sine"; o.frequency.value = f; o.detune.value = (i % 2 ? 7 : -7);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + len * (1 - i * 0.1));
-      o.connect(g).connect(trem); o.start(t); o.stop(t + len + 0.05);
-    });
+    comp.threshold.value = -18; comp.knee.value = 6; comp.ratio.value = 10; comp.attack.value = 0.002; comp.release.value = 0.25;
+    const out = ctx.createGain(); out.gain.value = 2.2;
+    const makeup = ctx.createGain(); makeup.gain.value = 1.3;
+    out.connect(comp).connect(makeup).connect(ctx.destination);
+    const bell = (f, t, dur, vol) => {
+      [[1, 1], [2, 0.35], [3, 0.12], [4.2, 0.06]].forEach(([m, a]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = f * m;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * a, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur / m ** 0.5);
+        o.connect(g).connect(out); o.start(t); o.stop(t + dur + 0.05);
+      });
+    };
+    if (variant === "ding") {
+      bell(1568, t0, 0.5, 0.35); bell(2093, t0 + 0.13, 1.3, 0.4);
+    } else {
+      [1046.5, 1318.5, 1568, 2093].forEach((f, i) => bell(f, t0 + i * 0.075, i === 3 ? 1.5 : 0.45, i === 3 ? 0.42 : 0.3));
+      // kilauan kecil setelah nada terakhir
+      [3136, 4186, 3520, 5274, 4699].forEach((f, i) => bell(f, t0 + 0.3 + i * 0.06, 0.35, 0.07));
+    }
   }
   const SOUNDS = {
     dup: [[740, 0, 0.13, "triangle"], [740, 0.2, 0.13, "triangle"]],
@@ -88,7 +87,7 @@
     window.__rpkLastBeep = { kind, at: Date.now(), state: actx ? actx.state : "none" };
     try {
       const ctx = audio();
-      if (ctx && kind === "ok") jring(ctx);
+      if (ctx && kind === "ok") successSound(ctx, "arpeggio");
       else if (ctx) for (const [f, at, dur, type] of SOUNDS[kind] || SOUNDS.err) {
         const o = ctx.createOscillator(), g = ctx.createGain();
         o.type = type; o.frequency.value = f;
