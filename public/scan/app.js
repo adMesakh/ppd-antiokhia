@@ -55,11 +55,15 @@
 
   // ok: "jringgg" (lonceng logam bergetar) · dup: dua nada sedang · err: dengung rendah
   function jring(ctx) {
-    const t = ctx.currentTime + 0.01, len = 1.1;
-    const out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination);
+    const t = ctx.currentTime + 0.01, len = 1.6;
+    // dibuat nyaring: dikeraskan lalu ditahan kompresor supaya tidak pecah di speaker HP
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.3;
+    const makeup = ctx.createGain(); makeup.gain.value = 1.35;
+    const out = ctx.createGain(); out.gain.value = 2.6; out.connect(comp).connect(makeup).connect(ctx.destination);
     // "rrr": volume bergetar cepat seperti lonceng sepeda / bel kasir
     const trem = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
-    lfo.frequency.value = 26; depth.gain.value = 0.45; trem.gain.value = 0.55;
+    lfo.frequency.value = 24; depth.gain.value = 0.4; trem.gain.value = 0.55;
     lfo.connect(depth).connect(trem.gain); trem.connect(out); lfo.start(t); lfo.stop(t + len);
     // "j": desis logam singkat di awal
     const n = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate), d = n.getChannelData(0);
