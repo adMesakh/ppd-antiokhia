@@ -36,17 +36,39 @@
   }
 
   // ---------- Umpan balik: getar + bunyi ----------
+  // Chrome Android hanya mengizinkan suara yang "dibuka" lewat sentuhan. Scan kamera bukan sentuhan,
+  // jadi suara dibuka pada sentuhan pertama petugas (login, pilih sesi, dsb.) lalu dipakai terus.
   let actx = null;
+  function audio() {
+    if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; actx = new AC(); }
+    if (actx.state !== "running") actx.resume().catch(() => {});
+    return actx;
+  }
+  function unlockAudio() {
+    const ctx = audio(); if (!ctx) return;
+    const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); // bunyi kosong untuk membuka izin
+    src.buffer = b; src.connect(ctx.destination); src.start(0);
+    if (ctx.state === "running") ["pointerdown", "touchend", "keydown"].forEach((t) => document.removeEventListener(t, unlockAudio, true));
+  }
+  ["pointerdown", "touchend", "keydown"].forEach((t) => document.addEventListener(t, unlockAudio, true));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && actx) actx.resume().catch(() => {}); });
+
+  // ok: "ting-ting" naik · dup: dua nada sedang · err: dengung rendah
+  const SOUNDS = {
+    ok: [[1046.5, 0, 0.12, "sine"], [1568, 0.11, 0.22, "sine"]],
+    dup: [[740, 0, 0.13, "triangle"], [740, 0.2, 0.13, "triangle"]],
+    err: [[196, 0, 0.4, "square"]],
+  };
   function beep(kind) {
+    window.__rpkLastBeep = { kind, at: Date.now(), state: actx ? actx.state : "none" };
     try {
-      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-      const notes = kind === "ok" ? [[880, 0, 0.09], [1320, 0.1, 0.12]] : kind === "dup" ? [[660, 0, 0.12], [660, 0.18, 0.12]] : [[220, 0, 0.35]];
-      for (const [f, at, dur] of notes) {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.type = kind === "err" ? "square" : "sine"; o.frequency.value = f;
-        const t = actx.currentTime + at;
-        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+      const ctx = audio();
+      if (ctx) for (const [f, at, dur, type] of SOUNDS[kind] || SOUNDS.err) {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type; o.frequency.value = f;
+        const t = ctx.currentTime + 0.01 + at, peak = type === "square" ? 0.18 : 0.6;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.03);
       }
     } catch (_) {}
     if (navigator.vibrate) navigator.vibrate(kind === "ok" ? 70 : kind === "dup" ? [50, 80, 50] : [220, 90, 220]);
