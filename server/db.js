@@ -120,6 +120,9 @@ CREATE TABLE IF NOT EXISTS photos (
 ALTER TABLE lineup ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
 -- Usia tidak lagi diminta saat pendaftaran
 ALTER TABLE participants ALTER COLUMN age DROP NOT NULL;
+-- pengunjung website: ID acak per perangkat (tanpa IP / data pribadi), satu baris per perangkat per hari (WIB)
+CREATE TABLE IF NOT EXISTS site_visits (vid TEXT NOT NULL, day TEXT NOT NULL, views INTEGER NOT NULL DEFAULT 1, first_at BIGINT NOT NULL, PRIMARY KEY (vid, day));
+CREATE INDEX IF NOT EXISTS site_visits_day ON site_visits (day);
 -- potongan file unggahan besar (lagu); dirakit lalu dihapus
 CREATE TABLE IF NOT EXISTS upload_chunks (upload_id TEXT NOT NULL, idx INTEGER NOT NULL, data BYTEA NOT NULL, at BIGINT NOT NULL, PRIMARY KEY (upload_id, idx));
 CREATE TABLE IF NOT EXISTS rate_hits (key TEXT NOT NULL, at BIGINT NOT NULL);

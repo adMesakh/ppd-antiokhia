@@ -185,6 +185,16 @@ app.get("/api/qr/:file", h(async (req, res) => {
   res.send(svg);
 }));
 
+// Penghitung pengunjung: dipanggil sekali per halaman publik. Hanya ID acak dari browser, tanpa IP.
+const wibDay = (t = Date.now()) => new Date(t + 7 * 36e5).toISOString().slice(0, 10);
+app.post("/api/visit", rateLimit({ name: "visit", windowMs: 10 * 60e3, max: 120 }), jsonSmall, h(async (req, res) => {
+  const vid = String(req.body?.vid || "");
+  if (!/^[a-z0-9]{10,40}$/.test(vid) || /bot|crawl|spider|preview|headless/i.test(req.get("user-agent") || "")) return res.status(204).end();
+  await query(`INSERT INTO site_visits (vid, day, views, first_at) VALUES ($1, $2, 1, $3)
+    ON CONFLICT (vid, day) DO UPDATE SET views = site_visits.views + 1`, [vid, wibDay(), Date.now()]);
+  res.status(204).end();
+}));
+
 // ---------------------------------------------------------------------------
 // LOGIN
 // ---------------------------------------------------------------------------
@@ -249,6 +259,49 @@ A.get("/summary", async (req, res) => {
   res.json({ registrations: reg, participants: ppl, money, churches, attendance: att, recent });
 });
 
+// Wallboard (layar TV/monitor panitia): ringkasan yang aman ditampilkan di depan umum (tanpa nama/nomor peserta)
+A.get("/wallboard", async (req, res) => {
+  const today = wibDay();
+  const [s, ppl, churchTotals, top, recentRegs, regDays, money, vis, visDays, att, checkin] = await Promise.all([
+    getSettings(),
+    one(`SELECT COUNT(*) FILTER (WHERE r.status != 'batal')::int AS total, COUNT(*) FILTER (WHERE r.status = 'lunas')::int AS paid,
+           COUNT(*) FILTER (WHERE r.status = 'menunggu')::int AS waiting, COUNT(*) FILTER (WHERE r.status != 'batal' AND p.role = 'gembala')::int AS pastors,
+           COUNT(*) FILTER (WHERE r.status != 'batal' AND p.gender = 'L')::int AS male, COUNT(*) FILTER (WHERE r.status != 'batal' AND p.gender = 'P')::int AS female
+         FROM participants p JOIN registrations r ON r.id = p.registration_id`),
+    one(`SELECT (SELECT COUNT(*)::int FROM churches) AS listed,
+           (SELECT COUNT(DISTINCT church_id)::int FROM registrations WHERE status != 'batal') AS registered,
+           (SELECT COUNT(DISTINCT church_id)::int FROM registrations WHERE status = 'lunas') AS paid,
+           (SELECT COUNT(*)::int FROM registrations WHERE status != 'batal') AS registrations`),
+    many(`SELECT c.name AS church, c.city, COUNT(p.id)::int AS n, COUNT(p.id) FILTER (WHERE r.status = 'lunas')::int AS paid
+          FROM churches c JOIN registrations r ON r.church_id = c.id AND r.status != 'batal' JOIN participants p ON p.registration_id = r.id
+          GROUP BY c.id, c.name, c.city ORDER BY n DESC, paid DESC, lower(c.name) LIMIT 8`),
+    many(`SELECT r.id, r.status, r.created_at, c.name AS church, c.city, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
+          FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 8`),
+    many(`SELECT r.created_at, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n FROM registrations r WHERE r.status != 'batal' AND r.created_at >= $1`,
+      [new Date(Date.now() - 15 * 864e5).toISOString()]),
+    one(`SELECT COALESCE(SUM(CASE WHEN r.status='lunas' THEN r.fee_per_person ELSE 0 END),0)::float8 AS received,
+           COALESCE(SUM(CASE WHEN r.status='menunggu' THEN r.fee_per_person ELSE 0 END),0)::float8 AS outstanding
+         FROM participants p JOIN registrations r ON r.id = p.registration_id`),
+    one(`SELECT COUNT(DISTINCT vid)::int AS unique_all, COALESCE(SUM(views),0)::int AS views_all,
+           COUNT(DISTINCT vid) FILTER (WHERE day = $1)::int AS unique_today, COALESCE(SUM(views) FILTER (WHERE day = $1),0)::int AS views_today
+         FROM site_visits`, [today]),
+    many("SELECT day, COUNT(*)::int AS n FROM site_visits WHERE day >= $1 GROUP BY day", [wibDay(Date.now() - 13 * 864e5)]),
+    one(`SELECT COUNT(*)::int AS scans, COUNT(DISTINCT participant_id)::int AS people, MAX(scanned_at) AS last FROM attendance`),
+    one(`SELECT COUNT(DISTINCT a.participant_id)::int AS n FROM attendance a JOIN sessions s ON s.id = a.session_id AND s.kind = 'checkin'`),
+  ]);
+  const days = [];
+  for (let i = 13; i >= 0; i--) days.push(wibDay(Date.now() - i * 864e5));
+  const regByDay = Object.fromEntries(days.map((d) => [d, 0]));
+  for (const r of regDays) { const d = wibDay(new Date(r.created_at).getTime()); if (d in regByDay) regByDay[d] += r.n; }
+  const visByDay = Object.fromEntries(visDays.map((r) => [r.day, r.n]));
+  res.set("Cache-Control", "no-store");
+  res.json({
+    now: now(), event: { name: s.event_name, start_at: s.start_at, end_at: s.end_at, dates_label: s.dates_label, location: s.location, registration_open: s.registration_open },
+    participants: ppl, churches: churchTotals, money, visitors: vis, attendance: { ...att, checked_in: checkin.n },
+    top_churches: top, recent: recentRegs.map((r) => ({ id: r.id, church: r.church, city: r.city, n: r.n, status: r.status, created_at: r.created_at })),
+    daily: days.map((d) => ({ day: d, participants: regByDay[d], visitors: visByDay[d] || 0 })),
+  });
+});
 A.get("/settings", async (req, res) => res.json(await getSettings()));
 A.put("/settings", jsonSmall, async (req, res) => {
   const b = req.body || {};
@@ -758,7 +811,7 @@ app.use("/api", (req, res) => bad(res, "Alamat API tidak dikenal.", 404));
 // ---------------------------------------------------------------------------
 app.use("/uploads", express.static(storage.UPLOAD_DIR, { maxAge: "7d", immutable: true, fallthrough: false }));
 // Dashboard dan halaman cetak hanya untuk admin yang sudah login; selain itu diarahkan ke halaman login.
-app.get(["/admin", "/admin/", "/admin/index.html", "/admin/print.html"], h(async (req, res, next) => {
+app.get(["/admin", "/admin/", "/admin/index.html", "/admin/print.html", "/admin/wallboard.html"], h(async (req, res, next) => {
   await init();
   const u = await auth.userFromRequest(req);
   if (u && u.role === "admin") return next();

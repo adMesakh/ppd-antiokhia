@@ -186,3 +186,4 @@ tr.clickable:hover td{background:rgba(0,0,0,.025)}
 .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--stage)}
 label.inline{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-weight:600;font-size:.86rem;color:var(--muted)}
+.wall-btn{background:var(--tape,#F5C518);color:#1B1814;border-color:transparent;font-weight:700}

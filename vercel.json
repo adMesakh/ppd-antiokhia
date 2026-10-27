@@ -43,6 +43,17 @@
       "permanent": false
     },
     {
+      "source": "/admin/wallboard.html",
+      "missing": [
+        {
+          "type": "cookie",
+          "key": "rpk_session"
+        }
+      ],
+      "destination": "/admin/login.html?next=%2Fadmin%2Fwallboard.html",
+      "permanent": false
+    },
+    {
       "source": "/scan",
       "destination": "/scan/",
       "permanent": false

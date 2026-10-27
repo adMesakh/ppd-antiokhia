@@ -21,6 +21,8 @@ Semua dari `/admin`:
 
 ## C. Selama masa pendaftaran
 
+- **Wallboard TV.** Klik tombol kuning **Wallboard TV** di pojok kanan atas dashboard. Halaman terbuka di tab baru; sambungkan laptop ke TV/proyektor, klik **Layar penuh**. Angka diperbarui sendiri tiap 20 detik dan layar tidak akan mati sendiri. Nama dan nomor WA peserta tidak pernah tampil di sini, jadi aman dipasang di tempat umum.
+
 - Setiap uang tunai diterima: **Pendaftaran → Tandai lunas**. QR peserta langsung terbit dan koordinator bisa melihatnya di tautan status.
 - Gereja yang mendaftar lewat telepon: **+ Pendaftaran oleh admin** (bisa langsung lunas).
 - Data peserta salah: buka Detail pendaftaran → Ubah.
