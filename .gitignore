@@ -4,3 +4,4 @@ data/
 tests/screenshots/
 demo/shots/
 demo/*.html
+.vercel/

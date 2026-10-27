@@ -43,7 +43,7 @@ docker compose up -d --build
 
 say "Memasang cadangan database harian (02.00)"
 cat > /etc/cron.d/ppd-antiokhia-backup <<CRON
-0 2 * * * root cd $DIR && docker compose exec -T app node server/backup.js >> /var/log/ppd-backup.log 2>&1 && find $DIR/data/backup -name '*.db' -mtime +14 -delete
+0 2 * * * root cd $DIR && docker compose exec -T app node server/backup.js >> /var/log/ppd-backup.log 2>&1 && find $DIR/data/backup -name '*.json' -mtime +14 -delete
 CRON
 
 say "Selesai"

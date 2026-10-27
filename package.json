@@ -1,19 +1,22 @@
 {
-  "name": "retreat-pemuda-kalbar",
+  "name": "ppd-antiokhia",
   "version": "1.0.0",
   "description": "Website pendaftaran, dashboard panitia, dan scanner kehadiran offline untuk retreat pemuda",
-  "main": "server/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "node server/start.js",
+    "dev": "node --watch server/start.js",
     "backup": "node server/backup.js",
     "test": "node tests/e2e.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "@electric-sql/pglite": "^0.5.9",
+    "@vercel/blob": "^2.8.1",
+    "@vercel/functions": "^3.10.4",
     "express": "^4.21.2",
     "jsqr": "^1.4.0",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {

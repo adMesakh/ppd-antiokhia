@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { query, one } = require("./db");
 
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // tanpa O/0/I/1 supaya mudah dibaca dan diketik
 
@@ -29,24 +30,20 @@ function csv(rows, headers) {
   return "﻿" + [headers.map(esc).join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
 }
 
-// Pembatas laju sederhana di memori: maksimal `max` permintaan per `windowMs` per IP.
-function rateLimit({ windowMs, max, message }) {
-  const hits = new Map();
-  setInterval(() => {
-    const cutoff = Date.now() - windowMs;
-    for (const [k, arr] of hits) {
-      const kept = arr.filter((t) => t > cutoff);
-      if (kept.length) hits.set(k, kept); else hits.delete(k);
-    }
-  }, windowMs).unref();
-  return (req, res, next) => {
-    const key = req.ip || "unknown";
-    const cutoff = Date.now() - windowMs;
-    const arr = (hits.get(key) || []).filter((t) => t > cutoff);
-    if (arr.length >= max) return res.status(429).json({ error: message || "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi." });
-    arr.push(Date.now());
-    hits.set(key, arr);
-    next();
+// Pembatas laju yang disimpan di database, supaya tetap berlaku walau Vercel menjalankan banyak salinan aplikasi.
+// Maksimal `max` permintaan per `windowMs` per IP untuk setiap nama batas.
+function rateLimit({ name, windowMs, max, message }) {
+  return async (req, res, next) => {
+    try {
+      const key = `${name}:${req.ip || "unknown"}`;
+      const now = Date.now();
+      await query("DELETE FROM rate_hits WHERE at < $1", [now - windowMs]);
+      // Catat dulu baru hitung, supaya permintaan paralel tidak bisa lolos bersamaan
+      await query("INSERT INTO rate_hits (key, at) VALUES ($1, $2)", [key, now]);
+      const n = (await one("SELECT COUNT(*)::int AS n FROM rate_hits WHERE key = $1 AND at >= $2", [key, now - windowMs])).n;
+      if (n > max) return res.status(429).json({ error: message || "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi." });
+      next();
+    } catch (e) { next(e); }
   };
 }
 

@@ -15,7 +15,8 @@ Panduan langkah demi langkah untuk panitia ada di **PANDUAN.md**.
 
 ## Teknologi
 
-- Node.js 20+ dan Express, database SQLite satu file (`data/retreat.db`).
+- Node.js 20+ dan Express. Database PostgreSQL: Neon saat di Vercel, atau PGlite (Postgres di dalam folder `data/pgdata`, tanpa instalasi) saat di laptop/VPS.
+- Foto galeri: Vercel Blob saat di Vercel, folder `data/uploads` saat di laptop/VPS.
 - Frontend HTML/CSS/JavaScript biasa tanpa proses build. Ubah file di `public/` lalu muat ulang browser.
 - Scanner: service worker + IndexedDB. QR dibaca dengan `BarcodeDetector` bawaan Chrome Android, atau `jsQR` sebagai cadangan.
 
@@ -31,7 +32,25 @@ Tanpa `ADMIN_PASSWORD`, password admin pertama dibuat acak dan ditampilkan di te
 
 Catatan: kamera dan service worker hanya jalan di `https://` atau `localhost`. Untuk mencoba scanner dari HP, server harus sudah online dengan HTTPS.
 
-## Pasang di VPS dengan satu perintah
+## Pasang di Vercel (gratis, disarankan)
+
+Butuh akun GitHub (repo ini) dan akun Vercel (daftar pakai GitHub di vercel.com).
+
+1. **Impor repo.** Buka vercel.com/new → pilih repo `ppd-antiokhia` → **Deploy**. Tidak perlu mengubah pengaturan apa pun. Setelah selesai, website sudah tampil, tapi pendaftaran dan admin belum jalan karena database belum ada.
+2. **Sambungkan database.** Di halaman proyek → tab **Storage** → **Create Database** → pilih **Neon** (Serverless Postgres) → region **Singapore** → buat dan sambungkan ke proyek ini. Vercel otomatis mengisi `DATABASE_URL`.
+3. **Sambungkan penyimpanan foto.** Masih di **Storage** → **Create** → **Blob** → akses **Public** → sambungkan ke proyek. Vercel otomatis mengisi `BLOB_READ_WRITE_TOKEN`.
+4. **Isi password admin.** Tab **Settings** → **Environment Variables** → tambahkan `ADMIN_PASSWORD` (password panjang) dan, bila mau, `ADMIN_USERNAME` (default `admin`).
+5. **Redeploy.** Tab **Deployments** → titik tiga pada deployment teratas → **Redeploy**. Variabel baru hanya terbaca setelah redeploy.
+6. **Coba.** Buka `https://nama-proyek.vercel.app/admin`, login, lalu ganti password di menu Akun. Scanner ada di `/scan`.
+
+Tabel database dibuat otomatis saat pertama kali dibuka. Setiap `git push` ke `main` otomatis memperbarui website.
+
+Catatan Vercel:
+- Fungsi server diatur berjalan di Singapura (`vercel.json` → `regions`), jadi pilih Neon di Singapura juga supaya cepat.
+- Ukuran unggahan dibatasi 4,5 MB per permintaan. Dashboard sudah mengecilkan foto otomatis sebelum diunggah.
+- Paket gratis (Hobby) ditujukan untuk penggunaan non-komersial. Neon dan Blob gratis punya batas kuota; untuk satu acara dengan ratusan peserta biasanya cukup, cek pemakaian di tab Storage.
+
+## Alternatif: pasang di VPS dengan satu perintah
 
 Server Ubuntu baru, domain sudah diarahkan (A record) ke IP server. Jalankan:
 
@@ -57,7 +76,9 @@ Caddy di `docker-compose.yml` mengurus sertifikat HTTPS otomatis. Data tersimpan
 | Nama | Default | Keterangan |
 |---|---|---|
 | `PORT` | `3000` | Port server |
-| `DATA_DIR` | `./data` | Lokasi database dan foto |
+| `DATABASE_URL` | kosong | Alamat PostgreSQL (Neon). Kosong = pakai PGlite di `DATA_DIR/pgdata` |
+| `BLOB_READ_WRITE_TOKEN` | kosong | Diisi otomatis oleh Vercel Blob. Kosong = foto disimpan di `DATA_DIR/uploads` |
+| `DATA_DIR` | `./data` | Lokasi database lokal, foto, dan cadangan |
 | `ADMIN_USERNAME` | `admin` | Admin pertama (hanya saat database masih kosong) |
 | `ADMIN_PASSWORD` | acak | Password admin pertama |
 | `TRUST_PROXY` | kosong | Isi `1` bila di belakang reverse proxy (Caddy/Nginx) |
@@ -65,10 +86,11 @@ Caddy di `docker-compose.yml` mengurus sertifikat HTTPS otomatis. Data tersimpan
 ## Cadangan
 
 ```bash
-npm run backup      # menyalin database ke data/backup/
+npm run backup                          # database lokal → data/backup/*.json
+DATABASE_URL=postgres://… npm run backup  # database Neon → data/backup/*.json
 ```
 
-Simpan juga folder `data/uploads` (foto galeri).
+Foto galeri di Vercel tersimpan di Blob; di VPS simpan juga folder `data/uploads`.
 
 ## Pengujian
 
@@ -77,7 +99,7 @@ npm install
 npm test
 ```
 
-Uji ujung-ke-ujung dengan Chromium: admin mengisi data, pendaftaran publik, approval, scanner login, scan QR lewat kamera palsu, scan offline, deteksi WiFi berbayar, sinkron tanpa duplikat, nominasi, cetak ID card, dan pemeriksaan hak akses.
+Uji ujung-ke-ujung dengan Chromium (pakai PGlite; set `DATABASE_URL` untuk menguji ke PostgreSQL sungguhan): admin mengisi data, pendaftaran publik, approval, scanner login, scan QR lewat kamera palsu, scan offline, deteksi WiFi berbayar, sinkron tanpa duplikat, nominasi, cetak ID card, dan pemeriksaan hak akses.
 
 ## Cara kerja sinkron scanner
 
@@ -90,7 +112,9 @@ Uji ujung-ke-ujung dengan Chromium: admin mengisi data, pendaftaran publik, appr
 ## Struktur
 
 ```
-server/      index.js (rute & API), db.js (skema), auth.js, stats.js (nominasi), backup.js
+index.js     titik masuk Vercel
+vercel.json  region, redirect login admin, header keamanan & cache
+server/      index.js (rute & API), start.js (laptop/VPS), db.js (skema Postgres), auth.js, stats.js (nominasi), storage.js (foto), backup.js
 public/      index.html, status.html, assets/ (landing)
 public/admin dashboard panitia + print.html (ID card A4)
 public/scan  PWA scanner (app.js, store.js, sw.js)

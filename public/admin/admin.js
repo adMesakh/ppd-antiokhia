@@ -547,7 +547,10 @@
     const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
     const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
     URL.revokeObjectURL(img.src);
-    return { data: c.toDataURL("image/jpeg", 0.82), width: w, height: h };
+    // Batas unggah server 4,5 MB: turunkan kualitas sampai foto di bawah ±3 MB
+    let q = 0.82, data = c.toDataURL("image/jpeg", q);
+    while (data.length > 3_000_000 && q > 0.4) { q -= 0.1; data = c.toDataURL("image/jpeg", q); }
+    return { data, width: w, height: h };
   }
   async function upload(files) {
     const st = $("#upStatus"); let ok = 0;

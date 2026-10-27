@@ -4,11 +4,10 @@ Aplikasinya sudah jadi dan sudah diuji. Yang tersisa adalah hal-hal yang butuh a
 
 ## A. Yang harus kamu lakukan sendiri (sekali)
 
-1. **Sewa server dan domain.** Cukup VPS kecil (1 vCPU, 1 GB RAM) dengan Ubuntu, plus satu domain. Pilih penyedia dengan pusat data di Indonesia supaya cepat dari Kalbar.
-2. **Aktifkan HTTPS.** Wajib. Tanpa HTTPS, kamera HP dan mode offline scanner tidak akan jalan. Cara termudah: pakai `docker-compose.yml` yang sudah disediakan (Caddy mengurus sertifikat otomatis).
-3. **Deploy.** Ikuti bagian "Deploy ke VPS" di README.md. Isi `ADMIN_PASSWORD` di `.env` dengan password panjang.
-4. **Login ke `/admin`, lalu ganti password** di menu Akun & scanner.
-5. **Atur cadangan otomatis.** Jadwalkan `npm run backup` (atau salin folder `data/`) tiap malam ke tempat lain, misalnya Google Drive.
+1. **Pasang di Vercel (gratis).** Ikuti bagian "Pasang di Vercel" di README.md: impor repo, sambungkan database Neon (pilih region Singapore) dan Blob (Public), isi `ADMIN_PASSWORD`, lalu Redeploy. HTTPS sudah otomatis, jadi kamera HP dan mode offline scanner langsung jalan.
+2. **Login ke `/admin`, lalu ganti password** di menu Akun & scanner.
+3. **Domain sendiri (opsional).** Alamat `nama-proyek.vercel.app` sudah cukup. Bila ingin domain sendiri: Vercel → proyek → Settings → Domains.
+4. **Cadangan.** Neon menyimpan riwayat database beberapa hari ke belakang. Untuk cadangan sendiri, jalankan `DATABASE_URL=… npm run backup` dari laptop (hasilnya file JSON di `data/backup/`), misalnya seminggu sekali dan sehari sebelum acara.
 
 ## B. Isi konten (bisa dikerjakan panitia lain)
 

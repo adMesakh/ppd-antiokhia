@@ -1,0 +1,28 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
+  "redirects": [
+    { "source": "/admin", "destination": "/admin/", "permanent": false },
+    { "source": "/admin/", "missing": [{ "type": "cookie", "key": "rpk_session" }], "destination": "/admin/login.html?next=%2Fadmin%2F", "permanent": false },
+    { "source": "/admin/index.html", "missing": [{ "type": "cookie", "key": "rpk_session" }], "destination": "/admin/login.html?next=%2Fadmin%2F", "permanent": false },
+    { "source": "/admin/print.html", "missing": [{ "type": "cookie", "key": "rpk_session" }], "destination": "/admin/login.html?next=%2Fadmin%2Fprint.html", "permanent": false },
+    { "source": "/scan", "destination": "/scan/", "permanent": false }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()" }
+      ]
+    },
+    { "source": "/(.*).html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/admin/", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/scan/", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/scan/manifest.webmanifest", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/scan/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/scan/" }] }
+  ]
+}

@@ -24,8 +24,8 @@ async function api(method, url, body, cookie) {
 }
 
 (async () => {
-  const server = spawn("node", ["server/index.js"], { cwd: path.join(__dirname, ".."), env: { ...process.env, PORT, DATA_DIR: DATA, ADMIN_USERNAME: "admin", ADMIN_PASSWORD: "panitia-rahasia" }, stdio: "inherit" });
-  await new Promise((r) => setTimeout(r, 1200));
+  const server = spawn("node", [process.env.E2E_SERVER || "server/start.js"], { cwd: path.join(__dirname, ".."), env: { ...process.env, PORT, DATA_DIR: DATA, ADMIN_USERNAME: "admin", ADMIN_PASSWORD: "panitia-rahasia" }, stdio: "inherit" });
+  for (let i = 0; i < 120; i++) { try { if ((await fetch(BASE + "/api/ping")).ok) break; } catch {} await new Promise((r) => setTimeout(r, 250)); }
   const browser = await chromium.launch();
   try {
     // ---------- Persiapan data oleh admin (lewat UI) ----------
