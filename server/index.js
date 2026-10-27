@@ -364,6 +364,8 @@ A.del("/lineup/:id/photo", async (req, res) => {
 // Lagu dikirim sebagai JSON base64 dalam beberapa potongan (cara yang sama dengan foto),
 // karena Vercel bisa mengubah isi permintaan biner mentah. Potongan disimpan sementara di database lalu dirakit.
 const MUSIC_MAX = 15 * 1024 * 1024;
+// Dashboard versi lama (masih tersimpan di cache browser) memakai alamat ini
+A.post("/music", (req, res) => bad(res, "Dashboard yang terbuka masih versi lama. Muat ulang halaman (Ctrl+Shift+R / Cmd+Shift+R), lalu unggah lagi.", 409));
 A.post("/music/chunk", jsonLarge, async (req, res) => {
   const id = String(req.body?.upload_id || ""), idx = Number(req.body?.index), total = Number(req.body?.total);
   if (!/^[a-z0-9]{12,40}$/.test(id) || !Number.isInteger(idx) || !Number.isInteger(total) || idx < 0 || total < 1 || total > 12 || idx >= total) return bad(res, "Potongan lagu tidak valid.");
@@ -767,7 +769,7 @@ app.get("/scan/sw.js", (req, res, next) => { res.set("Cache-Control", "no-cache"
 app.use(express.static(PUBLIC_DIR, {
   extensions: ["html"],
   setHeaders(res, file) {
-    if (file.endsWith(".html") || file.endsWith(".webmanifest") || file.endsWith("sw.js")) res.set("Cache-Control", "no-cache");
+    if (/\.(html|webmanifest|js|css)$/.test(file)) res.set("Cache-Control", "no-cache"); // selalu cek versi terbaru (murah: 304 bila tidak berubah)
     else res.set("Cache-Control", "public, max-age=300");
   },
 }));
