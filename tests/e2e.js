@@ -1,0 +1,299 @@
+// Uji ujung-ke-ujung: daftar → approve → scan offline → sinkron → hasil. Jalankan: npm test
+const { chromium, devices } = require("playwright");
+const { spawn, execFileSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const QRCode = require("qrcode");
+
+const PORT = 3911;
+const BASE = `http://localhost:${PORT}`;
+const DATA = fs.mkdtempSync("/tmp/rpk-e2e-");
+const SHOTS = path.join(__dirname, "screenshots");
+fs.mkdirSync(SHOTS, { recursive: true });
+const results = [];
+const check = (ok, msg) => { results.push([!!ok, msg]); console.log(`${ok ? "✓" : "✗"} ${msg}`); };
+const errors = [];
+const watch = (page, label) => {
+  page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
+  page.on("console", (m) => { if (m.type() === "error" && !/favicon|net::ERR_INTERNET_DISCONNECTED|Failed to load resource/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
+};
+
+async function api(method, url, body, cookie) {
+  const res = await fetch(BASE + url, { method, headers: { "Content-Type": "application/json", "X-RPK": "1", ...(cookie ? { Cookie: cookie } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  return { status: res.status, data: await res.json().catch(() => null), headers: res.headers };
+}
+
+(async () => {
+  const server = spawn("node", ["server/index.js"], { cwd: path.join(__dirname, ".."), env: { ...process.env, PORT, DATA_DIR: DATA, ADMIN_USERNAME: "admin", ADMIN_PASSWORD: "panitia-rahasia" }, stdio: "inherit" });
+  await new Promise((r) => setTimeout(r, 1200));
+  const browser = await chromium.launch();
+  try {
+    // ---------- Persiapan data oleh admin (lewat UI) ----------
+    const adminCtx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+    const admin = await adminCtx.newPage(); watch(admin, "admin");
+    await admin.goto(BASE + "/admin/");
+    check(/\/admin\/login\.html/.test(admin.url()), "Membuka dashboard tanpa login diarahkan ke halaman login terpisah");
+    await admin.fill("#lgUser", "admin"); await admin.fill("#lgPass", "salah-password"); await admin.click("#lgBtn");
+    await admin.waitForSelector("#lgErr:not([hidden])");
+    check(/salah/.test(await admin.textContent("#lgErr")), "Password salah ditolak dengan pesan jelas");
+    await admin.fill("#lgPass", "panitia-rahasia"); await admin.click("#lgBtn");
+    await admin.waitForURL(/\/admin\/$/);
+    await admin.waitForSelector("#app:not([hidden])");
+    check(true, "Admin login di halaman terpisah lalu masuk ke dashboard");
+    await admin.goto(BASE + "/admin/#gereja");
+    await admin.fill("#cBulk textarea", "GKII Jemaat Sungai Raya, Kubu Raya\nGPdI Siloam, Pontianak\nGBI Rock Singkawang, Singkawang\nGKE Imanuel, Ketapang\nHKBP Pontianak, Pontianak\nGPIB Maranatha, Pontianak");
+    await admin.click("#cBulk button");
+    await admin.waitForSelector("#toast:has-text(\"6 ditambahkan\")");
+    check(await admin.locator("tbody tr").count() === 6, "Admin menempel 6 gereja sekaligus");
+    const cookie = (await adminCtx.cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
+
+    await admin.goto(BASE + "/admin/#jadwal");
+    const addSession = async (title, kind, day, start) => {
+      await admin.click("#newS");
+      await admin.fill("#sf [name=title]", title); await admin.selectOption("#sf [name=kind]", kind);
+      await admin.fill("#sf [name=day]", String(day)); await admin.fill("#sf [name=starts_at]", start);
+      await admin.click("#sf button.primary"); await admin.waitForSelector("dialog[open]", { state: "detached" }).catch(() => {});
+      await admin.waitForTimeout(300);
+    };
+    await addSession("Registrasi ulang", "checkin", 1, "08:00");
+    await addSession("Seminar 1: Identitas", "seminar", 1, "10:00");
+    await addSession("Seminar 2: Panggilan", "seminar", 2, "09:00");
+    check((await api("GET", "/api/admin/sessions", null, cookie)).data.length === 3, "Admin membuat 3 sesi lewat form");
+
+    await admin.goto(BASE + "/admin/#konten");
+    await admin.fill("[name=fee_per_person]", "150000");
+    await admin.fill("[name=contact]", "Panitia · 0812-0000-0000");
+    await admin.click("#setF button.primary");
+    await admin.waitForSelector("#toast:has-text(\"Konten disimpan\")");
+    await admin.fill("#luF [name=name]", "Pdt. Contoh Utama"); await admin.selectOption("#luF [name=tier]", "utama"); await admin.click("#luF button");
+    await admin.waitForSelector("text=Pdt. Contoh Utama");
+    await admin.fill("#luF [name=name]", "Bintang Tamu Contoh"); await admin.selectOption("#luF [name=tier]", "tamu"); await admin.click("#luF button");
+    await admin.waitForTimeout(400);
+    check((await api("GET", "/api/public")).data.settings.fee_per_person === 150000, "Biaya per peserta tersimpan");
+
+    // ---------- Pendaftaran publik ----------
+    const pubCtx = await browser.newContext({ ...devices["Pixel 7"] });
+    const pub = await pubCtx.newPage(); watch(pub, "landing");
+    await pub.goto(BASE + "/");
+    await pub.waitForSelector(".ecard");
+    check(!(await pub.$("#regForm")), "Landing page tidak memuat formulir pendaftaran");
+    await pub.screenshot({ path: path.join(SHOTS, "landing-mobile.png"), fullPage: false });
+    await pub.click("#heroCta");
+    await pub.waitForURL(/\/daftar\.html/);
+    check(true, "Tombol Daftarkan rombongan membuka halaman pendaftaran terpisah");
+    await pub.waitForSelector("#church option:nth-child(2)", { state: "attached" });
+    await pub.screenshot({ path: path.join(SHOTS, "daftar-mobile.png"), fullPage: true });
+    const churchVal = await pub.locator("#church option", { hasText: "GPdI Siloam" }).getAttribute("value");
+    await pub.selectOption("#church", churchVal);
+    await pub.fill("#coord", "Rina Koordinator"); await pub.fill("#phone", "0812 3456 7890");
+    const rows = pub.locator(".prow");
+    const fillRow = async (i, name, role, g, age) => {
+      const r = rows.nth(i);
+      await r.locator("[data-f=name]").fill(name);
+      await r.locator(`input[value=${role}]`).check({ force: true });
+      await r.locator("select").selectOption(g);
+      await r.locator(".a").fill(String(age));
+    };
+    await fillRow(0, "Pdt. Yohanes", "gembala", "L", 45);
+    await fillRow(1, "Maria Angelina", "peserta", "P", 17);
+    await fillRow(2, "Kevin Pratama", "peserta", "L", 19);
+    await pub.click("#submitBtn");
+    check(await pub.locator("#formErr").isVisible() && /izin orang tua/.test(await pub.locator("#formErr").textContent()), "Formulir menolak peserta di bawah 18 tanpa izin orang tua");
+    await pub.check("#consent");
+    await pub.click("#submitBtn");
+    await pub.waitForURL(/status\.html/);
+    await pub.waitForSelector(".code");
+    const regCode = (await pub.locator(".code").textContent()).trim();
+    check(/^PPD27-[A-Z0-9]{5}$/.test(regCode) && /Menunggu/.test(await pub.textContent(".pill")), `Pendaftaran terkirim dengan kode ${regCode}, status menunggu`);
+    check(/450\.000/.test(await pub.textContent("#box")), "Total tagihan 3 × Rp150.000 tampil");
+    await pub.screenshot({ path: path.join(SHOTS, "status-menunggu.png"), fullPage: true });
+
+    // cek status lewat formulir (kode + WA)
+    await pub.goto(BASE + "/daftar.html#cek-status");
+    await pub.fill("#lkCode", regCode.toLowerCase()); await pub.fill("#lkPhone", "+62 812-3456-7890");
+    await pub.click("#lookupForm button"); await pub.waitForURL(/status\.html/);
+    check(true, "Cek status dengan kode + nomor WA berhasil");
+
+    // ---------- Admin menandai lunas ----------
+    await admin.goto(BASE + "/admin/#pendaftaran");
+    await admin.waitForSelector(`text=${regCode}`);
+    await admin.screenshot({ path: path.join(SHOTS, "admin-pendaftaran.png") });
+    await admin.click(`[data-code="${regCode}"]`);
+    await admin.click("[data-yes]");
+    await admin.waitForSelector("#toast:has-text(\"Ditandai lunas\")");
+    const st = await api("GET", "/api/admin/registrations?status=lunas", null, cookie);
+    check(st.data.some((r) => r.code === regCode), "Admin menandai pendaftaran lunas");
+
+    await pub.reload(); await pub.waitForSelector(".pass img");
+    await pub.waitForFunction(() => [...document.querySelectorAll(".pass img")].every((e) => e.complete), null, { timeout: 8000 }).catch(() => {});
+    const imgsOk = await pub.$$eval(".pass img", (els) => els.every((e) => e.complete && e.naturalWidth > 0));
+    check(imgsOk && (await pub.locator(".pass").count()) === 3, "Halaman status menampilkan 3 pass dengan QR");
+    await pub.screenshot({ path: path.join(SHOTS, "status-lunas.png"), fullPage: true });
+
+    // tambah data lain lewat API untuk mengisi nominasi
+    const churchesList = (await api("GET", "/api/admin/churches", null, cookie)).data;
+    const cid = (name) => churchesList.find((c) => c.name.startsWith(name)).id;
+    const mk = (n, prefix) => Array.from({ length: n }, (_, i) => ({ name: `${prefix} ${i + 1}`, role: i === 0 ? "gembala" : "peserta", gender: i % 2 ? "P" : "L", age: 18 + i }));
+    await api("POST", "/api/admin/registrations", { church_id: cid("GKII"), coordinator: "Andre", phone: "081211112222", status: "lunas", participants: mk(8, "Peserta GKII") }, cookie);
+    await api("POST", "/api/admin/registrations", { church_id: cid("GBI"), coordinator: "Sinta", phone: "081233334444", status: "lunas", participants: mk(5, "Peserta GBI") }, cookie);
+    await api("POST", "/api/admin/registrations", { church_id: cid("GKE"), coordinator: "Daniel", phone: "081255556666", status: "menunggu", participants: mk(4, "Peserta GKE") }, cookie);
+
+    // ---------- Scanner (HP Android) ----------
+    const parts = (await api("GET", "/api/admin/participants?status=lunas", null, cookie)).data;
+    const yoh = parts.find((p) => p.name === "Pdt. Yohanes");
+    const kevin = parts.find((p) => p.name === "Kevin Pratama");
+    await api("POST", "/api/admin/users", { username: "scan-pintu1", name: "Petugas Pintu 1", role: "scanner", password: "pintu12345" }, cookie);
+
+    // video kamera palsu berisi QR Yohanes
+    const png = path.join(DATA, "qr.png"), y4m = path.join(DATA, "qr.y4m");
+    await QRCode.toFile(png, yoh.qr_token, { margin: 2, width: 400 });
+    execFileSync("python3", [path.join(__dirname, "make_y4m.py"), png, y4m]);
+    const camBrowser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-video-capture=${y4m}`] });
+    const scanCtx = await camBrowser.newContext({ ...devices["Pixel 7"], permissions: ["camera"] });
+    const sc = await scanCtx.newPage(); watch(sc, "scanner");
+    await sc.goto(BASE + "/scan/");
+    await sc.waitForSelector("#scrLogin:not([hidden])");
+    await sc.fill("#lgUser", "scan-pintu1"); await sc.fill("#lgPass", "pintu12345"); await sc.click("#lgBtn");
+    await sc.waitForSelector("#scrHome:not([hidden])");
+    await sc.waitForFunction(() => document.querySelectorAll(".session").length === 3);
+    check(/16 peserta lunas, 3 sesi/.test(await sc.textContent("#dataInfo")), "Scanner login dan mengunduh 16 peserta lunas + 3 sesi (yang belum lunas tidak ikut)");
+    await sc.evaluate(() => navigator.serviceWorker.ready);
+    await sc.reload(); await sc.waitForSelector("#scrHome:not([hidden])");
+    check(await sc.evaluate(() => !!navigator.serviceWorker.controller), "Service worker aktif dan mengendalikan aplikasi");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-home.png") });
+
+    // scan lewat kamera (QR asli didekode jsQR)
+    await sc.locator(".session", { hasText: "Registrasi ulang" }).click();
+    await sc.waitForSelector("#result.ok", { timeout: 15000 });
+    check((await sc.textContent("#rName")) === "Pdt. Yohanes", "Kamera membaca QR di ID card dan mencatat Pdt. Yohanes (hijau)");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-scan-ok.png") });
+    await sc.waitForTimeout(3600); // QR yang sama masih di depan kamera setelah jeda → kuning
+    await sc.waitForSelector("#result.dup", { timeout: 10000 });
+    check(/Sudah tercatat/.test(await sc.textContent("#rState")), "QR yang sama di sesi yang sama ditandai 'sudah tercatat' (kuning)");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-scan-dup.png") });
+
+    // scan pertama terkirim otomatis karena HP sedang online
+    let auto = 0;
+    for (let i = 0; i < 20 && !auto; i++) { await sc.waitForTimeout(500); auto = (await api("GET", "/api/admin/attendance", null, cookie)).data.length; }
+    check(auto === 1, "Saat online, scan langsung terkirim otomatis ke server");
+
+    // ---------- OFFLINE ----------
+    await scanCtx.setOffline(true);
+    await sc.click("[data-tab=code]");
+    await sc.fill("#codeIn", kevin.code.toLowerCase()); await sc.click("#codeForm button");
+    await sc.waitForSelector("#result.ok");
+    check((await sc.textContent("#rName")) === "Kevin Pratama", "OFFLINE: ketik kode peserta tetap tercatat");
+    await sc.fill("#codeIn", "PPD27-ZZZZZ-999"); await sc.click("#codeForm button");
+    await sc.waitForSelector("#result.err");
+    check(true, "Kode tak dikenal ditandai merah");
+    await sc.click("[data-tab=name]");
+    await sc.fill("#nameQ", "maria ang");
+    await sc.waitForSelector("#nameResults [data-p]");
+    await sc.click("#nameResults [data-p]");
+    await sc.waitForSelector("#result.ok");
+    check((await sc.textContent("#rName")) === "Maria Angelina", "OFFLINE: cari nama lalu catat hadir");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-cari-nama.png") });
+    // sesi seminar, beberapa peserta GKII & GBI
+    await sc.click("#backBtn"); await sc.waitForSelector("#scrHome:not([hidden])");
+    check(/Offline/.test(await sc.textContent("#conn")), "Beranda scanner menunjukkan status Offline");
+    const pendingBefore = Number(await sc.textContent("#pendingN"));
+    check(pendingBefore === 2, `Ada 2 scan offline menunggu terkirim (terbaca ${pendingBefore})`);
+    // aplikasi tetap terbuka saat dimuat ulang tanpa internet
+    await sc.reload(); await sc.waitForSelector("#scrHome:not([hidden])", { timeout: 10000 });
+    check(true, "OFFLINE: aplikasi scanner tetap terbuka setelah dimuat ulang tanpa internet");
+    await sc.locator(".session", { hasText: "Seminar 1" }).click();
+    await sc.click("[data-tab=code]");
+    const seminar1 = parts.filter((p) => p.church.startsWith("GKII")).slice(0, 7).concat(parts.filter((p) => p.church.startsWith("GBI")).slice(0, 5));
+    for (const p of seminar1) { await sc.fill("#codeIn", p.code); await sc.click("#codeForm button"); await sc.waitForTimeout(80); }
+    await sc.click("#backBtn"); await sc.waitForSelector("#scrHome:not([hidden])");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-offline.png") });
+    const pending2 = Number(await sc.textContent("#pendingN"));
+    check(pending2 === 14, `14 scan offline tersimpan di HP (terbaca ${pending2})`);
+    const serverBefore = (await api("GET", "/api/admin/attendance", null, cookie)).data.length;
+    check(serverBefore === 1, `Server baru menerima 1 scan (yang online), terbaca ${serverBefore}`);
+
+    // ---------- WiFi berbayar belum login (captive portal) ----------
+    await sc.route("**/api/ping*", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<html>Login WiFi Rp5.000/jam</html>" }));
+    await scanCtx.setOffline(false);
+    await sc.click("#syncBtn");
+    await sc.waitForSelector("#syncMsg:not([hidden])");
+    const capMsg = await sc.textContent("#syncMsg"), capConn = await sc.textContent("#conn"), capPending = await sc.textContent("#pendingN");
+    check(/login WiFi/i.test(capMsg) && /WiFi perlu login/.test(capConn) && capPending === "14", `WiFi berbayar yang belum login terdeteksi, 14 scan tetap aman (${capConn} · ${capPending})`);
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-captive.png") });
+    await sc.unroute("**/api/ping*");
+
+    // ---------- Sinkron ----------
+    await sc.click("#syncBtn");
+    await sc.waitForFunction(() => document.querySelector("#pendingN").textContent === "0", null, { timeout: 15000 });
+    const serverAfter = (await api("GET", "/api/admin/attendance", null, cookie)).data.length;
+    check(serverAfter === 15, `Setelah sinkron, server punya 15 scan (terbaca ${serverAfter})`);
+    // sinkron ulang tidak menggandakan
+    await sc.click("#syncBtn"); await sc.waitForTimeout(1200);
+    check((await api("GET", "/api/admin/attendance", null, cookie)).data.length === 15, "Sinkron ulang tidak menggandakan data");
+    await sc.screenshot({ path: path.join(SHOTS, "scanner-synced.png") });
+
+    // HP kedua mencatat orang yang sama → ditolak sebagai duplikat oleh server, tetap dianggap terkirim
+    const sc2Ctx = await browser.newContext({ ...devices["Pixel 7"] });
+    const sc2 = await sc2Ctx.newPage(); watch(sc2, "scanner2");
+    await sc2.goto(BASE + "/scan/"); await sc2.fill("#lgUser", "admin"); await sc2.fill("#lgPass", "panitia-rahasia"); await sc2.click("#lgBtn");
+    await sc2.waitForSelector("#scrHome:not([hidden])");
+    await sc2.locator(".session", { hasText: "Seminar 1" }).click();
+    await sc2.click("[data-tab=code]"); await sc2.fill("#codeIn", seminar1[0].code); await sc2.click("#codeForm button");
+    await sc2.waitForSelector("#result.dup");
+    check(true, "HP kedua langsung tahu peserta sudah di-scan HP pertama (data ditarik saat unduh)");
+
+    // ---------- Hasil ----------
+    const rk = (await api("GET", "/api/admin/rankings", null, cookie)).data;
+    check(rk.most_participants[0].church.startsWith("GBI") || rk.most_participants[0].church.startsWith("GKII"), `Nominasi peserta terbanyak: ${rk.most_participants.map((r) => r.church + "=" + r.present).join(", ")}`);
+    check(rk.most_active[0].church.startsWith("GBI") && rk.most_active.every((r) => r.confirmed >= 5), `Nominasi paling aktif dihitung per peserta (GBI 5/5 mengalahkan GKII 7/8): ${rk.most_active.map((r) => r.church + "=" + r.seminar_per_person).join(", ")}`);
+    await admin.goto(BASE + "/admin/#hasil");
+    await admin.waitForSelector("text=Gereja paling aktif seminar");
+    await admin.fill("#ctF [name=contest]", "Lomba paduan suara"); await admin.fill("#ctF [name=winner]", "Paduan suara GPdI Siloam"); await admin.click("#ctF button");
+    await admin.waitForSelector("#toast:has-text(\"Pemenang ditambahkan\")");
+    await admin.check("#pub"); await admin.waitForSelector("#toast:has-text(\"Hasil tampil\")");
+    await admin.screenshot({ path: path.join(SHOTS, "admin-hasil.png"), fullPage: true });
+    const deskCtx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+    const desk = await deskCtx.newPage(); watch(desk, "landing-desktop");
+    await desk.goto(BASE + "/");
+    await desk.waitForSelector(".rank li");
+    check(/Papan skor akhir/.test(await desk.textContent("#scoreTitle")) && /paduan suara/i.test(await desk.textContent("#contests")), "Website menampilkan nominasi dan pemenang lomba setelah dipublikasikan");
+    await desk.screenshot({ path: path.join(SHOTS, "landing-desktop.png"), fullPage: true });
+
+    // ---------- Cetak ID card ----------
+    const pr = await adminCtx.newPage(); watch(pr, "print");
+    await pr.goto(BASE + "/admin/print.html");
+    await pr.waitForSelector("#printBtn:not([disabled])");
+    check((await pr.locator(".card").count()) === 16, "Halaman cetak berisi 16 ID card (hanya peserta lunas)");
+    await pr.screenshot({ path: path.join(SHOTS, "print-idcard.png") });
+    await pr.emulateMedia({ media: "print" });
+    await pr.pdf({ path: path.join(SHOTS, "contoh-idcard.pdf"), format: "A4", printBackground: true });
+
+    // halaman admin lain terbuka tanpa error
+    for (const v of ["ringkasan", "peserta", "kehadiran", "galeri", "akun"]) {
+      await admin.goto(BASE + "/admin/#" + v); await admin.waitForTimeout(500);
+      if (v === "ringkasan" || v === "peserta" || v === "kehadiran") await admin.screenshot({ path: path.join(SHOTS, `admin-${v}.png`) });
+    }
+    check(true, "Semua halaman admin terbuka");
+
+    // keamanan dasar
+    check((await api("GET", "/api/admin/summary")).status === 401, "API admin menolak tanpa login");
+    const scanTok = (await api("POST", "/api/auth/login", { username: "scan-pintu1", password: "pintu12345", mode: "scanner" })).data.token;
+    const r403 = await fetch(BASE + "/api/admin/summary", { headers: { Authorization: "Bearer " + scanTok } });
+    check(r403.status === 403, "Akun scanner tidak bisa membuka API admin");
+    check((await api("POST", "/api/auth/login", { username: "scan-pintu1", password: "pintu12345" })).status === 403, "Akun scanner tidak bisa masuk dashboard admin");
+    const gke = (await api("GET", "/api/admin/participants?status=menunggu", null, cookie)).data[0];
+    check((await fetch(BASE + `/api/qr/${gke.qr_token}.svg`)).status === 404, "QR peserta yang belum lunas tidak bisa diambil");
+
+    await camBrowser.close();
+  } catch (e) {
+    console.error(e);
+    check(false, "Pengujian berhenti karena error: " + e.message);
+  } finally {
+    await browser.close();
+    server.kill();
+    const failed = results.filter((r) => !r[0]).length;
+    if (errors.length) { console.log("\nError di konsol browser:"); errors.forEach((e) => console.log("  - " + e)); }
+    console.log(`\n${results.length - failed}/${results.length} pemeriksaan lolos${errors.length ? `, ${errors.length} error konsol` : ""}.`);
+    process.exit(failed || errors.length ? 1 : 0);
+  }
+})();

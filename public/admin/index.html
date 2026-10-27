@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meja Panitia · PPD Antiokhia</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+</head>
+<body>
+<div id="app" class="app" hidden>
+  <header class="top">
+    <a class="brand" href="#ringkasan"><img src="/assets/logo.png" alt="" width="30" height="30" style="border-radius:50%;flex:none"> PPD Antiokhia <span class="tape sm">Backstage</span></a>
+    <div class="top-right">
+      <a class="link" href="/" target="_blank" rel="noopener">Lihat website</a>
+      <span class="muted" id="whoami"></span>
+      <button class="btn ghost sm" id="logoutBtn" type="button">Keluar</button>
+    </div>
+  </header>
+  <nav class="side" aria-label="Menu admin">
+    <a href="#ringkasan" data-nav="ringkasan">Ringkasan</a>
+    <a href="#pendaftaran" data-nav="pendaftaran">Pendaftaran <span class="badge" id="navWaiting" hidden></span></a>
+    <a href="#peserta" data-nav="peserta">Peserta &amp; QR</a>
+    <a href="#gereja" data-nav="gereja">Gereja</a>
+    <a href="#jadwal" data-nav="jadwal">Jadwal sesi</a>
+    <a href="#kehadiran" data-nav="kehadiran">Kehadiran</a>
+    <a href="#hasil" data-nav="hasil">Hasil &amp; lomba</a>
+    <a href="#galeri" data-nav="galeri">Galeri foto</a>
+    <a href="#konten" data-nav="konten">Konten website</a>
+    <a href="#akun" data-nav="akun">Akun &amp; scanner</a>
+  </nav>
+  <main id="view" class="view" tabindex="-1"></main>
+</div>
+
+<dialog id="dlg" class="dlg"><div id="dlgBody"></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/admin/admin.js"></script>
+</body>
+</html>

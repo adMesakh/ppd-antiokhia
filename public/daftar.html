@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Daftar · PPD Antiokhia</title>
+<meta name="description" content="PPD Antiokhia, retreat pemuda antar gereja se-Kalimantan Barat. Daftarkan rombongan gerejamu.">
+<meta name="theme-color" content="#121110">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+</head>
+<body class="no-player">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-loc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="m12 6 4 11-4-2.5L8 17z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+</svg>
+
+<nav class="nav" aria-label="Utama">
+  <div class="wrap">
+    <a class="brand" href="/"><img class="mark" src="/assets/logo.png" alt=""><span>PPD Antiokhia</span></a>
+    <div class="nav-links"><a href="#cek-status" class="hide-sm">Cek status</a><a href="/" class="cta">Kembali ke beranda</a></div>
+  </div>
+</nav>
+
+<main>
+<section class="form-page">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tape">Pendaftaran rombongan</span>
+      <h2>Daftarkan <b>gerejamu</b></h2>
+      <p class="lede">Satu koordinator mengisi semua peserta dari gerejanya. Setelah terkirim, kamu mendapat kode pendaftaran untuk pembayaran tunai ke panitia.</p>
+    </div>
+    <div class="reg-layout">
+      <div>
+        <div class="panel closed" id="regClosed" hidden><h3>Pendaftaran sedang ditutup</h3><p class="fine">Hubungi panitia untuk informasi lebih lanjut.</p></div>
+        <form class="panel" id="regForm" novalidate>
+          <fieldset>
+            <legend>Gereja</legend>
+            <label for="church">Gereja asal <span class="hint">Tidak ada di daftar? Hubungi panitia.</span>
+              <select id="church" name="church" required><option value="">Memuat daftar gereja…</option></select>
+            </label>
+            <div class="grid2">
+              <label for="coord">Nama koordinator<input id="coord" name="coord" autocomplete="name" required></label>
+              <label for="phone">Nomor WhatsApp koordinator<input id="phone" name="phone" inputmode="tel" autocomplete="tel" placeholder="08…" required></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Peserta</legend>
+            <div id="plist" style="display:grid;gap:10px"></div>
+            <div><button type="button" class="btn-ghost btn-small" id="addP"><svg width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg>Tambah peserta</button></div>
+          </fieldset>
+          <label class="check" for="consent"><input type="checkbox" id="consent"> <span>Saya menyatakan peserta di bawah 18 tahun sudah mendapat izin orang tua atau wali untuk mengikuti retreat.</span></label>
+          <div class="msg err" id="formErr" role="alert" hidden></div>
+          <div class="summary">
+            <div class="total"><span id="sumCount">0 peserta</span> · <b id="sumFee">Biaya menyusul</b></div>
+            <button type="submit" class="btn btn-sun" id="submitBtn">Kirim pendaftaran</button>
+          </div>
+        </form>
+      </div>
+      <aside class="side">
+        <span class="eyebrow">Pratinjau pass peserta pertama</span>
+        <div class="pass" id="passPreview">
+          <div class="slot"></div>
+          <div class="band" id="ppRole">Peserta</div>
+          <div class="body">
+            <div class="qr"><div class="ph">QR TERBIT<br>SETELAH<br>LUNAS</div></div>
+            <div class="nm" id="ppName">Nama peserta</div>
+            <div class="ch" id="ppChurch">Gereja asal</div>
+          </div>
+          <div class="evt"><img src="/assets/logo.png" alt=""><span id="ppEvent">PPD Antiokhia</span></div>
+        </div>
+        <div class="panel">
+          <h3>Biaya &amp; pembayaran</h3>
+          <dl class="kv"><dt>Per peserta</dt><dd id="feeText">Menyusul</dd><dt>Cara bayar</dt><dd>Tunai</dd></dl>
+          <p class="fine" id="contact" hidden></p>
+          <p class="fine" id="payNote">Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section id="cek-status" style="padding-top:0">
+  <div class="wrap">
+    <div class="panel" style="max-width:680px">
+      <div style="display:grid;gap:10px;justify-items:start">
+        <span class="tape">Cek status</span>
+        <h3>Sudah mendaftar?</h3>
+        <p class="fine">Masukkan kode pendaftaran dan nomor WhatsApp koordinator untuk melihat status pembayaran dan pass peserta.</p>
+      </div>
+      <div id="myRegs" class="fine" hidden></div>
+      <form id="lookupForm" class="grid2" novalidate>
+        <label for="lkCode">Kode pendaftaran<input id="lkCode" placeholder="PPD27-XXXXX" autocapitalize="characters" autocomplete="off"></label>
+        <label for="lkPhone">Nomor WhatsApp koordinator<input id="lkPhone" inputmode="tel" placeholder="08…"></label>
+        <div class="msg err" id="lkErr" role="alert" hidden style="grid-column:1/-1"></div>
+        <div><button type="submit" class="btn btn-sun">Lihat status</button></div>
+      </form>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap"><span>PPD Antiokhia · Retreat pemuda antar gereja Kalimantan Barat</span><a href="/">Beranda</a></div>
+</footer>
+
+<script src="/assets/daftar.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "retreat-pemuda-kalbar",
+  "version": "1.0.0",
+  "description": "Website pendaftaran, dashboard panitia, dan scanner kehadiran offline untuk retreat pemuda",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "backup": "node server/backup.js",
+    "test": "node tests/e2e.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.2",
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

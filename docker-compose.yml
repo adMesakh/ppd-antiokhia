@@ -1,0 +1,22 @@
+# Jalankan di VPS: isi .env dulu, lalu `docker compose up -d --build`
+# Caddy otomatis mengurus HTTPS (wajib untuk kamera dan aplikasi scanner offline).
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMAIN} --to app:3000
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      - app
+volumes:
+  caddy_data:

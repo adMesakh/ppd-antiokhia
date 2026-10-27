@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cetak ID Card · PPD Antiokhia</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* ID card ukuran 95 × 135 mm, 4 kartu per A4. Garis potong tipis di tepi kartu. */
+@page{size:A4 portrait;margin:8mm}
+*{box-sizing:border-box}
+body{margin:0;background:#E9E4DA;font-family:"Instrument Sans",system-ui,sans-serif;color:#1D1A16;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{position:sticky;top:0;background:#14110E;color:#F3EDE3;padding:12px 20px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:2}
+.bar b{font-family:"Big Shoulders Display",sans-serif;font-weight:900;text-transform:uppercase;font-size:1.3rem}
+.bar button{font:700 .95rem inherit;background:#FFD21F;color:#1A1400;border:0;border-radius:6px;padding:9px 16px;cursor:pointer}
+.bar span{color:#A99F92;font-size:.9rem}
+.sheet{width:194mm;margin:16px auto;display:grid;grid-template-columns:repeat(2,95mm);grid-auto-rows:135mm;gap:4mm}
+.card{background:#F1ECE2;border:.2mm dashed #9A9184;position:relative;overflow:hidden;display:grid;grid-template-rows:auto auto 1fr auto;text-align:center;break-inside:avoid}
+.hole{width:16mm;height:3.4mm;border-radius:99px;background:#FFF;border:.3mm solid #BDB5A6;margin:5mm auto 0}
+.band{margin:4mm 5mm 0;border-radius:99px;background:#FF8A3D;color:#1C0D02;font-family:"Big Shoulders Display",sans-serif;font-weight:900;font-size:8.5mm;letter-spacing:.06em;text-transform:uppercase;padding:1.6mm 0;line-height:1}
+.card.gold .band{background:#161412;color:#FF8A3D}
+.mid{display:grid;justify-items:center;align-content:center;gap:2.2mm;padding:3mm 5mm}
+.mid img{width:46mm;height:46mm;background:#FFF;padding:1.5mm;border-radius:1.5mm}
+.nm{font-family:"Big Shoulders Display",sans-serif;font-weight:900;font-size:8.6mm;line-height:.95;text-transform:uppercase;overflow-wrap:anywhere;max-width:85mm}
+.ch{font-weight:700;font-size:3.6mm;color:#4E483F}
+.code{font-family:"JetBrains Mono",monospace;font-size:3mm;color:#5C564C}
+.evt{border-top:.3mm dashed #BDB5A6;padding:2mm 3mm;font-size:2.6mm;font-weight:700;letter-spacing:.14em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:2mm}
+.evt img{width:7mm;height:7mm;border-radius:50%}
+.evt .nm2{flex:1;text-align:left}
+.empty{text-align:center;padding:60px 20px;color:#6E665B}
+@media print{body{background:#FFF}.bar{display:none}.sheet{margin:0}}
+</style>
+</head>
+<body>
+<div class="bar"><div><b>Cetak ID card</b> <span id="info">Memuat…</span></div><button type="button" id="printBtn" disabled>Cetak</button></div>
+<div class="sheet" id="sheet"></div>
+<script>
+(async function () {
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const res = await fetch("/api/admin/print" + location.search, { credentials: "same-origin" });
+  if (res.status === 401) { location.href = "/admin/login.html?next=" + encodeURIComponent(location.pathname + location.search); return; }
+  const d = await res.json();
+  const list = d.participants || [];
+  document.getElementById("info").textContent = `${list.length} kartu · ${Math.ceil(list.length / 4)} halaman A4. Atur printer: tanpa skala (100%), warna.`;
+  if (!list.length) { document.getElementById("sheet").outerHTML = `<p class="empty">Tidak ada peserta lunas untuk dicetak.</p>`; return; }
+  document.getElementById("sheet").innerHTML = list.map((p) => `
+    <div class="card${p.role === "gembala" ? " gold" : ""}">
+      <div class="hole"></div>
+      <div class="band">${p.role === "gembala" ? "Gembala sidang" : "Peserta"}</div>
+      <div class="mid"><img src="/api/qr/${encodeURIComponent(p.qr_token)}.svg" alt=""><div class="nm">${esc(p.name)}</div><div class="ch">${esc(p.church)}</div><div class="code">${esc(p.code)}</div></div>
+      <div class="evt"><img src="/assets/logo.png" alt=""><span class="nm2">${esc(d.event_name)}</span><span>${esc(d.dates_label)}</span></div>
+    </div>`).join("");
+  const imgs = [...document.images];
+  await Promise.all(imgs.map((i) => i.complete ? null : new Promise((r) => { i.onload = i.onerror = r; })));
+  const btn = document.getElementById("printBtn"); btn.disabled = false; btn.onclick = () => window.print();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+node_modules/
+data/
+.env
+tests/screenshots/
+demo/shots/
+demo/*.html

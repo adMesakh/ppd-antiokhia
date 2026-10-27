@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Masuk · Meja Panitia PPD Antiokhia</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#121110">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+<style>
+/* Halaman masuk panitia: panel panggung di kiri, formulir di kanan. Tumpuk satu kolom di layar sempit. */
+html,body{height:100%}
+body.no-player{padding-bottom:0}
+.login-wrap{min-height:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;padding:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.login-art{position:relative;border-radius:var(--r-xl);overflow:hidden;display:grid;align-content:space-between;padding:clamp(24px,4vw,48px);isolation:isolate;min-height:280px;background:#000}
+.login-art canvas,.login-art .photo{position:absolute;inset:0;width:100%;height:100%;z-index:-2;object-fit:cover}
+.login-art::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.1) 45%,rgba(0,0,0,.65))}
+.login-art .brand-row{display:flex;align-items:center;gap:14px}
+.login-art .brand-row img{width:56px;height:56px;border-radius:50%;background:#FFF}
+.login-art .brand-row b{font-size:1.15rem}
+.login-art h1{font-size:clamp(2.4rem,5vw,4rem);line-height:1.02;font-weight:600;letter-spacing:-.035em}
+.login-art h1 span{color:var(--orange)}
+.login-art p{color:rgba(247,243,238,.85);max-width:40ch;margin-top:14px}
+.login-side{display:grid;place-items:center;padding:clamp(8px,3vw,40px)}
+.login-card{width:min(100%,420px);display:grid;gap:18px}
+.login-card h2{font-size:2rem;font-weight:700}
+.pw{position:relative}
+.pw input{padding-right:96px}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:8px 14px;font-size:.85rem;color:var(--muted)}
+.pw button:hover{color:var(--ink)}
+.login-card .btn-sun{width:100%;padding:16px}
+.alt{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.88rem;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+.alt a{color:var(--ink)}
+@media (max-width:860px){.login-wrap{grid-template-columns:1fr}.login-art{min-height:240px}.login-art h1{font-size:2.2rem}}
+</style>
+</head>
+<body class="no-player">
+<main class="login-wrap">
+  <section class="login-art" aria-label="PPD Antiokhia">
+    <canvas data-art data-seed="7" data-theme="ember"></canvas><img class="photo" src="https://images.unsplash.com/photo-1692271931628-adc2b16670dd?auto=format&fit=crop&w=1200&q=70" alt="" onerror="this.remove()">
+    <div class="brand-row"><img src="/assets/logo.png" alt="Logo PPD Antiokhia"><b>PPD Antiokhia</b></div>
+    <div>
+      <span class="tag hot">Khusus panitia</span>
+      <h1 style="margin-top:16px">Meja <span>panitia</span></h1>
+      <p>Kelola pendaftaran, konfirmasi pembayaran tunai, cetak ID card, dan pantau kehadiran peserta.</p>
+      <small style="display:block;margin-top:18px;opacity:.7">Foto: <a href="https://unsplash.com/photos/-Ma-aFuivjs" target="_blank" rel="noopener">Roberto Rendon</a> di Unsplash</small>
+    </div>
+  </section>
+  <section class="login-side">
+    <form class="login-card" id="loginForm" novalidate>
+      <div style="display:grid;gap:8px">
+        <h2>Masuk</h2>
+        <p class="fine">Pakai akun admin dari ketua panitia.</p>
+      </div>
+      <div class="msg ok" id="outMsg" hidden>Kamu sudah keluar.</div>
+      <label for="lgUser">Username<input id="lgUser" autocomplete="username" autocapitalize="none" required></label>
+      <label for="lgPass">Password
+        <span class="pw"><input id="lgPass" type="password" autocomplete="current-password" required><button type="button" id="showPw" aria-pressed="false">Lihat</button></span>
+      </label>
+      <div class="msg err" id="lgErr" role="alert" hidden></div>
+      <button class="btn btn-sun" type="submit" id="lgBtn">Masuk ke meja panitia</button>
+      <div class="alt"><span>Petugas scan? Buka <a href="/scan/">aplikasi scanner</a></span><a href="/">Ke website</a></div>
+    </form>
+  </section>
+</main>
+<script src="/assets/stage-art.js"></script>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const params = new URLSearchParams(location.search);
+  // Hanya izinkan kembali ke halaman di dalam /admin/ supaya tautan login tidak bisa dipakai mengalihkan ke situs lain
+  let next = params.get("next") || "/admin/";
+  if (!/^\/admin\/(?!login)/.test(next)) next = "/admin/";
+  if (params.get("keluar") === "1") $("#outMsg").hidden = false;
+  if (window.StageArt) window.StageArt.attach();
+
+  fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.user && d.user.role === "admin") location.replace(next); }).catch(() => {});
+  setTimeout(() => $("#lgUser").focus(), 50);
+
+  $("#showPw").onclick = () => {
+    const inp = $("#lgPass"), show = inp.type === "password";
+    inp.type = show ? "text" : "password";
+    $("#showPw").textContent = show ? "Sembunyikan" : "Lihat";
+    $("#showPw").setAttribute("aria-pressed", String(show));
+  };
+
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("#lgErr"), btn = $("#lgBtn");
+    err.hidden = true;
+    if (!$("#lgUser").value.trim() || !$("#lgPass").value) { err.textContent = "Isi username dan password."; err.hidden = false; return; }
+    btn.disabled = true; btn.textContent = "Memeriksa…";
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: $("#lgUser").value.trim(), password: $("#lgPass").value }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      location.replace(next);
+    } catch (x) {
+      err.textContent = x.message === "Failed to fetch" ? "Tidak bisa menghubungi server. Cek koneksi internet." : x.message;
+      err.hidden = false; btn.disabled = false; btn.textContent = "Masuk ke meja panitia";
+    }
+  });
+})();
+</script>
+</body>
+</html>

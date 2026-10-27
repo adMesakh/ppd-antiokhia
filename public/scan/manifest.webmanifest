@@ -1,0 +1,17 @@
+{
+  "name": "Scanner PPD Antiokhia",
+  "short_name": "Scanner PPD",
+  "description": "Scan kehadiran peserta retreat, bisa tanpa internet.",
+  "start_url": "/scan/",
+  "scope": "/scan/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0907",
+  "theme_color": "#0B0907",
+  "lang": "id",
+  "icons": [
+    { "src": "/scan/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/scan/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/scan/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

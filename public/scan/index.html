@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Scanner PPD Antiokhia</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B0907">
+<link rel="manifest" href="/scan/manifest.webmanifest">
+<link rel="icon" href="/scan/icon-192.png">
+<link rel="stylesheet" href="/scan/scan.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="scrLogin" class="screen" hidden>
+  <form id="loginForm" class="login" novalidate>
+    <div class="mark" aria-hidden="true"></div>
+    <h1>Scanner kehadiran</h1>
+    <p class="muted">Login sekali saat ada internet. Setelah itu aplikasi bisa dipakai tanpa sinyal.</p>
+    <label for="lgUser">Username<input id="lgUser" autocomplete="username" autocapitalize="none"></label>
+    <label for="lgPass">Password<input id="lgPass" type="password" autocomplete="current-password"></label>
+    <div class="note err" id="lgErr" hidden></div>
+    <button class="btn primary big" type="submit" id="lgBtn">Masuk &amp; unduh data</button>
+  </form>
+</section>
+
+<!-- BERANDA -->
+<section id="scrHome" class="screen" hidden>
+  <header class="bar">
+    <div><b id="evName">Retreat</b><small id="userName"></small></div>
+    <button class="btn ghost sm" id="logoutBtn" type="button">Keluar</button>
+  </header>
+  <div class="pad stack">
+    <div class="status" id="statusCard">
+      <div class="status-row"><span class="conn" id="conn">Memeriksa…</span><span class="muted" id="lastSync"></span></div>
+      <div class="pending"><b id="pendingN">0</b><span id="pendingLbl">scan belum terkirim</span></div>
+      <div class="note" id="syncMsg" hidden></div>
+      <div class="row2">
+        <button class="btn primary" id="syncBtn" type="button">Sinkronkan</button>
+        <button class="btn" id="dlBtn" type="button">Unduh ulang data</button>
+      </div>
+      <p class="muted small" id="dataInfo"></p>
+    </div>
+    <h2>Pilih sesi</h2>
+    <div id="sessionList" class="stack"></div>
+    <button class="btn ghost" id="historyBtn" type="button">Riwayat scan di HP ini</button>
+  </div>
+</section>
+
+<!-- SCAN -->
+<section id="scrScan" class="screen scan" hidden>
+  <header class="bar">
+    <button class="btn ghost sm" id="backBtn" type="button" aria-label="Kembali ke daftar sesi">← Sesi</button>
+    <div class="center"><b id="sesTitle">Sesi</b><small id="sesCount"></small></div>
+    <span class="dot" id="dot" title="Status koneksi"></span>
+  </header>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="cam" aria-selected="true">Kamera</button>
+    <button role="tab" data-tab="name" aria-selected="false">Cari nama</button>
+    <button role="tab" data-tab="code" aria-selected="false">Ketik kode</button>
+  </div>
+
+  <div class="tabpane" id="paneCam">
+    <div class="viewer">
+      <video id="video" playsinline muted></video>
+      <div class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="camMsg" id="camMsg">Menyalakan kamera…</div>
+      <button class="btn sm torch" id="torchBtn" type="button" hidden>Senter</button>
+    </div>
+  </div>
+
+  <div class="tabpane pad stack" id="paneName" hidden>
+    <input id="nameQ" type="search" placeholder="Ketik nama peserta" autocomplete="off" aria-label="Cari nama peserta">
+    <select id="churchF" aria-label="Filter gereja"><option value="">Semua gereja</option></select>
+    <div id="nameResults" class="list"></div>
+  </div>
+
+  <div class="tabpane pad stack" id="paneCode" hidden>
+    <form id="codeForm" class="stack">
+      <label for="codeIn">Kode di bawah QR pada ID card<input id="codeIn" autocapitalize="characters" autocomplete="off" placeholder="PPD27-ABCDE-001" inputmode="text"></label>
+      <button class="btn primary big" type="submit">Catat hadir</button>
+    </form>
+    <p class="muted small">Pakai ini bila QR rusak atau kamera tidak bisa membaca.</p>
+  </div>
+
+  <div class="result" id="result" hidden aria-live="assertive">
+    <span class="r-state" id="rState"></span>
+    <b class="r-name" id="rName"></b>
+    <span class="r-sub" id="rSub"></span>
+  </div>
+</section>
+
+<!-- RIWAYAT -->
+<section id="scrHistory" class="screen" hidden>
+  <header class="bar">
+    <button class="btn ghost sm" id="histBack" type="button">← Kembali</button>
+    <div class="center"><b>Riwayat scan</b><small>HP ini</small></div>
+    <span></span>
+  </header>
+  <div class="pad"><div id="histList" class="list"></div></div>
+</section>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-card" id="sheetCard"></div></div>
+<div class="banner" id="updateBanner" hidden>Aplikasi diperbarui. <button class="btn sm" id="reloadBtn" type="button">Muat ulang</button></div>
+
+<script src="/vendor/jsQR.js" defer></script>
+<script src="/scan/store.js"></script>
+<script src="/scan/app.js"></script>
+</body>
+</html>
