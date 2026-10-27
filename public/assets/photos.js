@@ -1,4 +1,4 @@
-// Foto latar dari Unsplash (lisensi Unsplash: bebas dipakai, kredit fotografer dicantumkan di footer).
+// Foto latar dari Unsplash (lisensi Unsplash: bebas dipakai, kredit tidak wajib; daftar fotografer ada di bawah dan di komentar index.html).
 // Hanya foto gratis, bukan Unsplash+. Bila foto gagal dimuat (misalnya tanpa internet), ilustrasi panggung tetap tampil di belakangnya.
 // Untuk mengganti foto: ambil ID dari alamat gambar images.unsplash.com/photo-<ID>.
 (function () {
@@ -25,10 +25,5 @@
     url,
     // <img> yang menutupi ilustrasi; dihapus sendiri bila gagal dimuat
     img(p, w, cls) { return `<img class="${cls || "photo"}" src="${url(p, w)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`; },
-    credits() {
-      const seen = new Map();
-      Object.values(P).forEach((p) => { if (!seen.has(p.by)) seen.set(p.by, p.page); });
-      return [...seen].map(([by, page]) => `<a href="${page}" target="_blank" rel="noopener">${by}</a>`).join(", ");
-    },
   };
 })();

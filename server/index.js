@@ -51,7 +51,7 @@ app.get("/api/ping", (req, res) => {
 function publicSettings(s) {
   const keys = ["event_name", "title_line1", "title_line2", "tagline", "start_at", "end_at", "dates_label", "location",
     "est_churches", "est_participants", "fee_per_person", "payment_note", "contact", "registration_open",
-    "results_published", "music_url", "spotify_url"];
+    "results_published", "music_url", "music_title", "spotify_url"];
   return Object.fromEntries(keys.map((k) => [k, s[k]]));
 }
 
@@ -59,7 +59,7 @@ app.get("/api/public", h(async (req, res) => {
   const s = await getSettings();
   const [churches, lineup, sessions, photos, counts] = await Promise.all([
     many("SELECT id, name, city FROM churches ORDER BY lower(name)"),
-    many("SELECT id, name, tier, note FROM lineup ORDER BY CASE tier WHEN 'utama' THEN 0 WHEN 'pembicara' THEN 1 ELSE 2 END, sort, id"),
+    many("SELECT id, name, tier, note, photo_url FROM lineup ORDER BY CASE tier WHEN 'utama' THEN 0 WHEN 'pembicara' THEN 1 ELSE 2 END, sort, id"),
     many("SELECT id, title, kind, day, starts_at, ends_at, location, speaker FROM sessions ORDER BY day, starts_at, id"),
     many("SELECT id, url, caption, width, height FROM photos ORDER BY created_at DESC, id DESC LIMIT 60"),
     one(`SELECT COUNT(DISTINCT r.church_id)::int AS churches, COUNT(p.id)::int AS participants
@@ -86,12 +86,11 @@ function parseParticipants(list, res) {
     const name = cleanText(p.name, 80);
     const role = p.role === "gembala" ? "gembala" : p.role === "peserta" ? "peserta" : null;
     const gender = p.gender === "L" || p.gender === "P" ? p.gender : null;
-    const age = Number(p.age);
-    if (name.length < 2 || !role || !gender || !Number.isInteger(age) || age < 5 || age > 99) {
-      bad(res, `Data peserta nomor ${i + 1} belum lengkap (nama, status, jenis kelamin, usia).`);
+    if (name.length < 2 || !role || !gender) {
+      bad(res, `Data peserta nomor ${i + 1} belum lengkap (nama, status, jenis kelamin).`);
       return null;
     }
-    out.push({ name, role, gender, age });
+    out.push({ name, role, gender, age: null });
   }
   return out;
 }
@@ -110,7 +109,6 @@ app.post("/api/registrations", rateLimit({ name: "daftar", windowMs: 10 * 60e3, 
   if (b.participants.length > 150) return bad(res, "Maksimal 150 peserta per pendaftaran. Pecah menjadi beberapa pendaftaran.");
   const participants = parseParticipants(b.participants, res);
   if (!participants) return;
-  if (participants.some((p) => p.age < 18) && !b.consent) return bad(res, "Centang pernyataan izin orang tua untuk peserta di bawah 18 tahun.");
   const reg = await createRegistration({ church_id: church.id, coordinator, phone, consent: !!b.consent, participants, source: "online", status: "menunggu", fee: Number(s.fee_per_person) || 0, prefix: s.code_prefix });
   res.status(201).json({ code: reg.code, status_token: reg.status_token, status: reg.status, church: church.name, participants: participants.length });
 }));
@@ -139,7 +137,7 @@ async function newQrToken(q) {
 async function insertParticipant(q, registrationId, churchId, regCode, seq, p) {
   const code = `${regCode}-${String(seq).padStart(3, "0")}`;
   const r = await q(`INSERT INTO participants (registration_id, church_id, seq, code, qr_token, name, role, gender, age) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [registrationId, churchId, seq, code, await newQrToken(q), p.name, p.role, p.gender, p.age]);
+    [registrationId, churchId, seq, code, await newQrToken(q), p.name, p.role, p.gender, p.age ?? null]);
   return r.rows[0].id;
 }
 
@@ -147,7 +145,7 @@ async function registrationView(reg, { includeQr }) {
   const church = (await one("SELECT name, city FROM churches WHERE id = $1", [reg.church_id])) || { name: "", city: "" };
   const participants = (await many("SELECT id, code, qr_token, name, role, gender, age FROM participants WHERE registration_id = $1 ORDER BY seq", [reg.id]))
     .map((p) => {
-      const out = { code: p.code, name: p.name, role: p.role, gender: p.gender, age: p.age };
+      const out = { code: p.code, name: p.name, role: p.role, gender: p.gender };
       if (includeQr && reg.status === "lunas") out.qr = p.qr_token;
       return out;
     });
@@ -237,8 +235,7 @@ A.get("/summary", async (req, res) => {
            COUNT(*) FILTER (WHERE status='batal')::int AS cancelled FROM registrations`),
     one(`SELECT COUNT(*) FILTER (WHERE r.status='menunggu')::int AS waiting, COUNT(*) FILTER (WHERE r.status='lunas')::int AS paid,
            COUNT(*) FILTER (WHERE r.status='lunas' AND p.role='gembala')::int AS pastors,
-           COUNT(*) FILTER (WHERE r.status='lunas' AND p.gender='L')::int AS male, COUNT(*) FILTER (WHERE r.status='lunas' AND p.gender='P')::int AS female,
-           COUNT(*) FILTER (WHERE r.status='lunas' AND p.age < 18)::int AS minors
+           COUNT(*) FILTER (WHERE r.status='lunas' AND p.gender='L')::int AS male, COUNT(*) FILTER (WHERE r.status='lunas' AND p.gender='P')::int AS female
          FROM participants p JOIN registrations r ON r.id = p.registration_id`),
     one(`SELECT COALESCE(SUM(CASE WHEN r.status='lunas' THEN r.fee_per_person ELSE 0 END),0)::float8 AS received,
            COALESCE(SUM(CASE WHEN r.status='menunggu' THEN r.fee_per_person ELSE 0 END),0)::float8 AS outstanding
@@ -255,7 +252,7 @@ A.get("/settings", async (req, res) => res.json(await getSettings()));
 A.put("/settings", jsonSmall, async (req, res) => {
   const b = req.body || {};
   const patch = {};
-  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_url", "spotify_url", "code_prefix"];
+  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_url", "music_title", "spotify_url", "code_prefix"];
   for (const k of text) if (k in b) patch[k] = cleanText(b[k], k === "payment_note" ? 400 : 200);
   for (const k of ["start_at", "end_at"]) if (k in b) {
     if (Number.isNaN(new Date(b[k]).getTime())) return bad(res, "Format tanggal tidak valid.");
@@ -325,15 +322,55 @@ function lineupBody(b) {
 }
 A.post("/lineup", jsonSmall, async (req, res) => {
   const v = lineupBody(req.body); if (!v) return bad(res, "Isi nama dan pilih peran.");
-  await query("INSERT INTO lineup (name, tier, note, sort) VALUES ($1, $2, $3, $4)", v);
-  res.status(201).json({ ok: true });
+  const r = await one("INSERT INTO lineup (name, tier, note, sort) VALUES ($1, $2, $3, $4) RETURNING id", v);
+  res.status(201).json({ ok: true, id: r.id });
 });
 A.put("/lineup/:id", jsonSmall, async (req, res) => {
   const v = lineupBody(req.body); if (!v) return bad(res, "Isi nama dan pilih peran.");
   await query("UPDATE lineup SET name=$1, tier=$2, note=$3, sort=$4 WHERE id=$5", [...v, intId(req.params.id)]);
   res.json({ ok: true });
 });
-A.del("/lineup/:id", async (req, res) => { await query("DELETE FROM lineup WHERE id = $1", [intId(req.params.id)]); res.json({ ok: true }); });
+A.del("/lineup/:id", async (req, res) => {
+  const l = await one("SELECT photo_url FROM lineup WHERE id = $1", [intId(req.params.id)]);
+  await query("DELETE FROM lineup WHERE id = $1", [intId(req.params.id)]);
+  if (l) await storage.removeFile(l.photo_url);
+  res.json({ ok: true });
+});
+// Foto pembicara / bintang tamu
+A.post("/lineup/:id/photo", jsonLarge, async (req, res) => {
+  const l = await one("SELECT id, photo_url FROM lineup WHERE id = $1", [intId(req.params.id)]);
+  if (!l) return bad(res, "Lineup tidak ditemukan.", 404);
+  const img = parseImage(req.body?.data);
+  if (img.error) return bad(res, img.error);
+  const url = await storage.saveFile(img.buf, "lineup", `lineup-${l.id}-${Date.now()}.${img.ext}`, img.type);
+  await query("UPDATE lineup SET photo_url = $1 WHERE id = $2", [url, l.id]);
+  await storage.removeFile(l.photo_url);
+  res.status(201).json({ photo_url: url });
+});
+A.del("/lineup/:id/photo", async (req, res) => {
+  const l = await one("SELECT id, photo_url FROM lineup WHERE id = $1", [intId(req.params.id)]);
+  if (l) { await query("UPDATE lineup SET photo_url = '' WHERE id = $1", [l.id]); await storage.removeFile(l.photo_url); }
+  res.json({ ok: true });
+});
+
+// --- Lagu latar landing page ---
+// Dikirim sebagai file mentah (bukan JSON) supaya muat di batas 4,5 MB Vercel. Dashboard mengecilkan lagu yang lebih besar.
+A.post("/music", express.raw({ type: () => true, limit: "4400kb" }), async (req, res) => {
+  const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  const isMp3 = buf.length > 1024 && (buf.subarray(0, 3).toString() === "ID3" || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0));
+  if (!isMp3) return bad(res, "File lagu harus berformat MP3.");
+  const before = await getSettings();
+  const url = await storage.saveFile(buf, "musik", `lagu-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.mp3`, "audio/mpeg");
+  const s = await saveSettings({ music_url: url, music_title: cleanText(req.query.title, 120) });
+  if (before.music_url && before.music_url !== url) await storage.removeFile(before.music_url);
+  res.status(201).json(s);
+});
+A.del("/music", async (req, res) => {
+  const before = await getSettings();
+  const s = await saveSettings({ music_url: "", music_title: "" });
+  await storage.removeFile(before.music_url);
+  res.json(s);
+});
 
 // --- Pendaftaran ---
 A.get("/registrations", async (req, res) => {
@@ -402,9 +439,8 @@ A.del("/registrations/:id", async (req, res) => {
 // --- Peserta ---
 function participantBody(b) {
   const name = cleanText(b?.name, 80);
-  const age = Number(b?.age);
-  if (name.length < 2 || !["gembala", "peserta"].includes(b?.role) || !["L", "P"].includes(b?.gender) || !Number.isInteger(age) || age < 5 || age > 99) return null;
-  return { name, role: b.role, gender: b.gender, age };
+  if (name.length < 2 || !["gembala", "peserta"].includes(b?.role) || !["L", "P"].includes(b?.gender)) return null;
+  return { name, role: b.role, gender: b.gender };
 }
 A.get("/participants", async (req, res) => {
   const where = ["TRUE"]; const args = [];
@@ -419,7 +455,7 @@ A.get("/participants", async (req, res) => {
 A.post("/registrations/:id/participants", jsonSmall, async (req, res) => {
   const reg = await one("SELECT * FROM registrations WHERE id = $1", [intId(req.params.id)]);
   if (!reg) return bad(res, "Pendaftaran tidak ditemukan.", 404);
-  const v = participantBody(req.body); if (!v) return bad(res, "Lengkapi nama, status, jenis kelamin, dan usia.");
+  const v = participantBody(req.body); if (!v) return bad(res, "Lengkapi nama, status, dan jenis kelamin.");
   await tx(async (q) => {
     await q("SELECT id FROM registrations WHERE id = $1 FOR UPDATE", [reg.id]); // satu per satu per pendaftaran
     const seq = ((await q("SELECT MAX(seq) AS m FROM participants WHERE registration_id = $1", [reg.id])).rows[0].m || 0) + 1;
@@ -428,8 +464,8 @@ A.post("/registrations/:id/participants", jsonSmall, async (req, res) => {
   res.status(201).json({ ok: true });
 });
 A.put("/participants/:id", jsonSmall, async (req, res) => {
-  const v = participantBody(req.body); if (!v) return bad(res, "Lengkapi nama, status, jenis kelamin, dan usia.");
-  const r = await query("UPDATE participants SET name=$1, role=$2, gender=$3, age=$4 WHERE id=$5", [v.name, v.role, v.gender, v.age, intId(req.params.id)]);
+  const v = participantBody(req.body); if (!v) return bad(res, "Lengkapi nama, status, dan jenis kelamin.");
+  const r = await query("UPDATE participants SET name=$1, role=$2, gender=$3 WHERE id=$4", [v.name, v.role, v.gender, intId(req.params.id)]);
   if (!r.rowCount) return bad(res, "Peserta tidak ditemukan.", 404);
   res.json({ ok: true });
 });
@@ -535,17 +571,22 @@ A.put("/contests/:id", jsonSmall, async (req, res) => {
 A.del("/contests/:id", async (req, res) => { await query("DELETE FROM contest_results WHERE id = $1", [intId(req.params.id)]); res.json({ ok: true }); });
 
 // --- Galeri ---
-A.get("/photos", async (req, res) => res.json(await many("SELECT * FROM photos ORDER BY created_at DESC, id DESC")));
-A.post("/photos", jsonLarge, async (req, res) => {
-  const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data || ""));
-  if (!m) return bad(res, "Format foto harus JPG, PNG, atau WebP.");
+// Foto dikirim sebagai data URL; isi file diperiksa supaya benar-benar gambar.
+function parseImage(data) {
+  const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(data || ""));
+  if (!m) return { error: "Format foto harus JPG, PNG, atau WebP." };
   const buf = Buffer.from(m[2], "base64");
   const sig = buf.subarray(0, 12).toString("hex");
   const okSig = (m[1] === "jpeg" && sig.startsWith("ffd8ff")) || (m[1] === "png" && sig.startsWith("89504e47")) || (m[1] === "webp" && buf.subarray(8, 12).toString() === "WEBP");
-  if (!okSig) return bad(res, "File foto rusak.");
-  const ext = m[1] === "jpeg" ? "jpg" : m[1];
-  const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-  const url = await storage.savePhoto(buf, filename, `image/${m[1]}`);
+  if (!okSig) return { error: "File foto rusak." };
+  return { buf, ext: m[1] === "jpeg" ? "jpg" : m[1], type: `image/${m[1]}` };
+}
+A.get("/photos", async (req, res) => res.json(await many("SELECT * FROM photos ORDER BY created_at DESC, id DESC")));
+A.post("/photos", jsonLarge, async (req, res) => {
+  const img = parseImage(req.body?.data);
+  if (img.error) return bad(res, img.error);
+  const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${img.ext}`;
+  const url = await storage.savePhoto(img.buf, filename, img.type);
   await query("INSERT INTO photos (filename, url, caption, width, height) VALUES ($1, $2, $3, $4, $5)", [filename, url, cleanText(req.body?.caption, 200), intId(req.body?.width), intId(req.body?.height)]);
   res.status(201).json({ ok: true });
 });
@@ -598,10 +639,10 @@ function sendCsv(res, name, rows, headers) {
 }
 A.get("/export/participants.csv", async (req, res) => {
   const rows = await many(`SELECT p.code AS kode_peserta, p.name AS nama, CASE p.role WHEN 'gembala' THEN 'Gembala sidang' ELSE 'Peserta' END AS status_peserta,
-      p.gender AS jk, p.age AS usia, c.name AS gereja, c.city AS kota, r.code AS kode_pendaftaran, r.status AS status_bayar, r.coordinator AS koordinator, r.phone AS wa_koordinator,
+      CASE p.gender WHEN 'P' THEN 'Perempuan' ELSE 'Laki-laki' END AS jenis_kelamin, c.name AS gereja, c.city AS kota, r.code AS kode_pendaftaran, r.status AS status_bayar, r.coordinator AS koordinator, r.phone AS wa_koordinator,
       (SELECT COUNT(*)::int FROM attendance a WHERE a.participant_id = p.id) AS jumlah_scan
     FROM participants p JOIN registrations r ON r.id = p.registration_id JOIN churches c ON c.id = p.church_id ORDER BY lower(c.name), lower(p.name)`);
-  sendCsv(res, "peserta.csv", rows, ["kode_peserta", "nama", "status_peserta", "jk", "usia", "gereja", "kota", "kode_pendaftaran", "status_bayar", "koordinator", "wa_koordinator", "jumlah_scan"]);
+  sendCsv(res, "peserta.csv", rows, ["kode_peserta", "nama", "status_peserta", "jenis_kelamin", "gereja", "kota", "kode_pendaftaran", "status_bayar", "koordinator", "wa_koordinator", "jumlah_scan"]);
 });
 A.get("/export/attendance.csv", async (req, res) => {
   const rows = await many(`SELECT s.day AS hari, s.title AS sesi, s.kind AS jenis, p.code AS kode_peserta, p.name AS nama, c.name AS gereja, a.scanned_at AS waktu_scan, a.method AS metode, u.name AS petugas, a.device_id AS perangkat

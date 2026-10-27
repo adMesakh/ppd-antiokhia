@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS participants (
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('gembala','peserta')),
   gender TEXT NOT NULL CHECK (gender IN ('L','P')),
-  age INTEGER NOT NULL,
+  age INTEGER,
   created_at TEXT NOT NULL DEFAULT ${NOW}
 );
 CREATE INDEX IF NOT EXISTS participants_reg ON participants (registration_id);
@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS photos (
   width INTEGER, height INTEGER,
   created_at TEXT NOT NULL DEFAULT ${NOW}
 );
+ALTER TABLE lineup ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
+-- Usia tidak lagi diminta saat pendaftaran
+ALTER TABLE participants ALTER COLUMN age DROP NOT NULL;
 CREATE TABLE IF NOT EXISTS rate_hits (key TEXT NOT NULL, at BIGINT NOT NULL);
 CREATE INDEX IF NOT EXISTS rate_hits_key ON rate_hits (key, at);
 `;
@@ -227,6 +230,7 @@ const DEFAULT_SETTINGS = {
   results_published: false,
   min_participants_for_activity: 5,
   music_url: "",
+  music_title: "",
   spotify_url: "https://open.spotify.com/search/NDC%20Worship",
   code_prefix: "PPD27",
 };

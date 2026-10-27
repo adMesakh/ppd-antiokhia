@@ -54,7 +54,7 @@
               <div class="nm">${esc(p.name)}</div><div class="ch">${esc(d.church)}</div><div class="id">${esc(p.code)}</div></div>
               <div class="evt"><img src="/assets/logo.png" alt="">PPD Antiokhia</div>
             </div>`).join("")}</div>`
-        : `<div class="panel"><h3>Daftar peserta</h3><ol class="plist">${d.participants.map((p) => `<li>${esc(p.name)} <span class="fine">· ${esc(ROLE[p.role])} · ${esc(p.gender)}, ${esc(p.age)}</span></li>`).join("")}</ol>
+        : `<div class="panel"><h3>Daftar peserta</h3><ol class="plist">${d.participants.map((p) => `<li>${esc(p.name)} <span class="fine">· ${esc(ROLE[p.role])} · ${p.gender === "P" ? "Perempuan" : "Laki-laki"}</span></li>`).join("")}</ol>
            <p class="fine">Ada data yang salah? Hubungi panitia dengan menyebutkan kode pendaftaran.</p></div>`}`;
     $("#copyBtn").onclick = async () => {
       const inp = $("#lnk");

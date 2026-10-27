@@ -58,7 +58,7 @@
   }
 
   function load() { try { const s = localStorage.getItem(KEY); if (s) { D = JSON.parse(s); D.photos = D.photos || []; return; } } catch (_) {} D = seed(); }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify({ ...D, photos: [] })); } catch (_) {} }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify({ ...D, photos: [], settings: { ...D.settings, music_url: "" }, lineup: D.lineup.map((l) => ({ ...l, photo_url: "" })) })); } catch (_) {} }
   load();
   const nid = (t) => (D.seq[t] = (D.seq[t] || 0) + 1);
 
@@ -78,9 +78,9 @@
   const sortSessions = (a, b) => a.day - b.day || String(a.starts_at).localeCompare(String(b.starts_at)) || a.id - b.id;
   const newQr = () => { let t; do { t = "R" + rnd(11); } while (D.participants.some((p) => p.qr_token === t)); return t; };
   function validParticipant(p) {
-    const name = clean(p?.name, 80), age = Number(p?.age);
-    if (name.length < 2 || !["gembala", "peserta"].includes(p?.role) || !["L", "P"].includes(p?.gender) || !Number.isInteger(age) || age < 5 || age > 99) return null;
-    return { name, role: p.role, gender: p.gender, age };
+    const name = clean(p?.name, 80);
+    if (name.length < 2 || !["gembala", "peserta"].includes(p?.role) || !["L", "P"].includes(p?.gender)) return null;
+    return { name, role: p.role, gender: p.gender };
   }
   function addParticipant(r, seq, v) {
     D.participants.push({ id: nid("participants"), registration_id: r.id, church_id: r.church_id, seq, code: `${r.code}-${String(seq).padStart(3, "0")}`, qr_token: newQr(), ...v, created_at: now() });
@@ -140,7 +140,7 @@
     return {
       registrations: { waiting: D.registrations.filter((r) => r.status === "menunggu").length, paid: D.registrations.filter((r) => r.status === "lunas").length, cancelled: D.registrations.filter((r) => r.status === "batal").length },
       participants: { waiting: cnt((x) => x.r.status === "menunggu"), paid: cnt((x) => x.r.status === "lunas"), pastors: cnt((x) => x.r.status === "lunas" && x.p.role === "gembala"),
-        male: cnt((x) => x.r.status === "lunas" && x.p.gender === "L"), female: cnt((x) => x.r.status === "lunas" && x.p.gender === "P"), minors: cnt((x) => x.r.status === "lunas" && x.p.age < 18) },
+        male: cnt((x) => x.r.status === "lunas" && x.p.gender === "L"), female: cnt((x) => x.r.status === "lunas" && x.p.gender === "P") },
       money: { received: ps.filter((x) => x.r.status === "lunas").reduce((s, x) => s + x.r.fee_per_person, 0), outstanding: ps.filter((x) => x.r.status === "menunggu").reduce((s, x) => s + x.r.fee_per_person, 0) },
       churches: { total: D.churches.length, paid: new Set(D.registrations.filter((r) => r.status === "lunas").map((r) => r.church_id)).size },
       attendance: { scans: att.length, people: new Set(att.map((a) => a.participant_id)).size, last: att.map((a) => a.received_at).sort().pop() || null },
@@ -180,8 +180,12 @@
   on("GET", /^\/api\/admin\/lineup$/, () => [...D.lineup].sort((a, b) => tierOrd[a.tier] - tierOrd[b.tier] || a.sort - b.sort || a.id - b.id));
   on("POST", /^\/api\/admin\/lineup$/, (m, q, b) => {
     const name = clean(b.name, 80); if (!name || !tierOrd.hasOwnProperty(b.tier)) throw E(400, "Isi nama dan pilih peran.");
-    D.lineup.push({ id: nid("lineup"), name, tier: b.tier, note: clean(b.note), sort: Number(b.sort) || 0 }); return { ok: true };
+    const l = { id: nid("lineup"), name, tier: b.tier, note: clean(b.note), sort: Number(b.sort) || 0, photo_url: "" }; D.lineup.push(l); return { ok: true, id: l.id };
   });
+  on("POST", /^\/api\/admin\/lineup\/(\d+)\/photo$/, (m, q, b) => { const l = D.lineup.find((x) => x.id === +m[1]); if (!/^data:image\//.test(b.data || "")) throw E(400, "Format foto harus JPG, PNG, atau WebP."); if (l) l.photo_url = b.data; return { photo_url: b.data }; });
+  on("DELETE", /^\/api\/admin\/lineup\/(\d+)\/photo$/, (m) => { const l = D.lineup.find((x) => x.id === +m[1]); if (l) l.photo_url = ""; return { ok: true }; });
+  on("POST", /^\/api\/admin\/music$/, (m, q, b, c) => { if (!(c.raw instanceof Blob)) throw E(400, "File lagu harus berformat MP3."); D.settings.music_url = URL.createObjectURL(c.raw); D.settings.music_title = clean(q.get("title"), 120); return D.settings; });
+  on("DELETE", /^\/api\/admin\/music$/, () => { D.settings.music_url = ""; D.settings.music_title = ""; return D.settings; });
   on("DELETE", /^\/api\/admin\/lineup\/(\d+)$/, (m) => { D.lineup = D.lineup.filter((l) => l.id !== +m[1]); return { ok: true }; });
 
   const ST_ORD = { menunggu: 0, lunas: 1, batal: 2 };
@@ -378,13 +382,13 @@
       const hdr = opts.headers || {};
       const auth = (hdr.Authorization || hdr.authorization || "").replace(/^Bearer\s+/, "");
       let body = {};
-      try { body = opts.body ? JSON.parse(opts.body) : {}; } catch (_) {}
+      try { body = typeof opts.body === "string" ? JSON.parse(opts.body) : {}; } catch (_) {}
       for (const [m, re, fn] of R) {
         if (m !== method) continue;
         const match = re.exec(url.pathname);
         if (!match) continue;
         try {
-          const out = fn(match, url.searchParams, body, { who, token: auth });
+          const out = fn(match, url.searchParams, body, { who, token: auth, raw: opts.body });
           save();
           if (who === "scan" && api.onChange) api.onChange("scan");
           if (who === "admin" && method !== "GET" && api.onChange) api.onChange("admin");

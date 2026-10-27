@@ -137,7 +137,7 @@ td.actions{text-align:right;white-space:nowrap}
 .kv dt{color:var(--muted)}
 .kv dd{margin:0;overflow-wrap:anywhere}
 
-.prow{display:grid;grid-template-columns:minmax(0,2fr) 150px 110px 70px 34px;gap:8px;align-items:center}
+.prow{display:grid;grid-template-columns:minmax(0,2fr) 150px 140px 34px;gap:8px;align-items:center}
 @media (max-width:640px){.prow{grid-template-columns:1fr 1fr}}
 
 .qrbig{display:grid;justify-items:center;gap:8px;text-align:center}
@@ -163,3 +163,9 @@ td.actions{text-align:right;white-space:nowrap}
 .toast.err{background:var(--no)}
 .daygroup{display:grid;gap:8px}
 .daygroup h3{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:1.2rem}
+/* lagu latar & foto lineup */
+.music-now{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+.music-now>div{display:grid;gap:2px;min-width:180px}
+.music-now audio{height:36px;flex:1;min-width:220px}
+.lu-thumb{width:44px;height:44px;border-radius:50%;object-fit:cover;display:grid;place-content:center;background:var(--line);font-weight:700;color:var(--muted)}
+td .btn input[hidden]{display:none}

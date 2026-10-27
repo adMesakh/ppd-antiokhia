@@ -20,7 +20,6 @@
       im.onerror = () => im.remove();
       im.src = PH.url(p, 900);
     });
-    const cr = document.getElementById("photoCredits"); if (cr) cr.innerHTML = PH.credits();
   }
 
   function toast(t) { const el = $("#toast"); if (!el) return; el.textContent = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => (el.hidden = true), 2600); }
@@ -51,7 +50,7 @@
     const d0 = wib(S.start_at);
     if (d0) $("#dateBig").innerHTML = `${DAYS[d0.getUTCDay()]}.<br>${d0.getUTCDate()} ${MONTHS[d0.getUTCMonth()]}`;
     if (S.spotify_url) $("#spotifyLink").href = S.spotify_url; else $("#spotifyLink").hidden = true;
-    if (window.RPKMusic) window.RPKMusic.configure({ url: S.music_url, label: S.music_url ? "Musik retreat" : "Pad worship · musik latar retreat" });
+    if (window.RPKMusic) window.RPKMusic.configure({ url: S.music_url, label: S.music_url ? (S.music_title || "Musik retreat") : "Pad worship · musik latar retreat" });
 
     renderStrip(data.photos);
     renderLineup(data.lineup);
@@ -89,7 +88,9 @@
     if (!list.length) return;
     $("#stage").innerHTML = list.map((p, i) => `
       <article class="scard">
-        <canvas data-art data-seed="${101 + i * 17}" data-theme="${THEMES[(i + 2) % THEMES.length]}"></canvas>${PH ? PH.img(PH.lineup[i % PH.lineup.length], 800) : ""}
+        <canvas data-art data-seed="${101 + i * 17}" data-theme="${THEMES[(i + 2) % THEMES.length]}"></canvas>${p.photo_url
+          ? `<img class="photo face" src="${esc(p.photo_url)}" alt="Foto ${esc(p.name)}" loading="lazy" decoding="async" onerror="this.remove()">`
+          : PH ? PH.img(PH.lineup[i % PH.lineup.length], 800) : ""}
         <div>
           <div class="tags"><span class="tag${p.tier === "utama" ? " hot" : ""}">${TIER[p.tier]}</span>${p.note ? `<span class="tag">${esc(p.note)}</span>` : ""}</div>
           <h3>${esc(p.name)}</h3>

@@ -14,7 +14,7 @@ Aplikasinya sudah jadi dan sudah diuji. Yang tersisa adalah hal-hal yang butuh a
 Semua dari `/admin`:
 
 1. **Gereja** → tempel daftar 40+ gereja sekaligus (format `Nama, Kota` per baris, bisa disalin dari Excel).
-2. **Konten website** → tanggal & jam mulai/selesai (WIB), lokasi, biaya per peserta, kontak panitia, catatan pembayaran, lineup pembicara dan bintang tamu.
+2. **Konten website** → tanggal & jam mulai/selesai (WIB), lokasi, biaya per peserta, kontak panitia, catatan pembayaran, lineup pembicara dan bintang tamu beserta fotonya, dan lagu latar (unggah file MP3 di kartu **Lagu latar**).
 3. **Jadwal sesi** → minimal satu sesi *Check-in* (registrasi ulang) dan semua sesi *Seminar*. Hanya sesi Seminar yang dihitung untuk nominasi "gereja paling aktif".
 4. **Hasil & lomba** → atur batas minimal peserta agar gereja ikut nominasi paling aktif (default 5).
 5. Buka pendaftaran (saklar "Pendaftaran dibuka" di Konten website) lalu bagikan alamat website ke grup koordinator gereja.
@@ -57,6 +57,7 @@ Semua dari `/admin`:
 
 ## G. Keputusan panitia yang masih terbuka
 
-- **Musik NDC.** Website memakai pad worship buatan sendiri yang bebas hak cipta. Untuk memakai rekaman NDC, minta izin dulu ke pihak NDC, lalu isi alamat file MP3-nya di Konten website → File musik latar.
+- **Lagu latar.** Tanpa lagu, website memutar pad worship buatan sendiri yang bebas hak cipta. Untuk memakai lagu NDC (misalnya *Sukacita Melimpah*), unggah file MP3-nya di Konten website → Lagu latar. Lagu yang bisa didengar gratis di Spotify/YouTube tetap milik pemegang hak ciptanya, jadi pastikan panitia punya izin (misalnya lewat lisensi gereja atau izin langsung dari NDC). File di atas 4 MB otomatis dikecilkan.
+- **Autoplay.** Chrome dan Safari tidak mengizinkan website memutar suara sebelum pengunjung menyentuh halaman. Website mencoba memutar langsung; bila diblokir, lagu mulai pada sentuhan, klik, atau ketukan tombol pertama.
 - **Biaya per peserta** dan **tanggal pasti** (saat ini memakai contoh 6–9 Juli 2027).
 - **Siapa yang memegang akun admin.** Sarannya dua orang saja: ketua panitia dan bendahara.

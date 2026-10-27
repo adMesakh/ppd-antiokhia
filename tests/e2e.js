@@ -65,8 +65,36 @@ async function api(method, url, body, cookie) {
     await admin.fill("[name=contact]", "Panitia · 0812-0000-0000");
     await admin.click("#setF button.primary");
     await admin.waitForSelector("#toast:has-text(\"Konten disimpan\")");
-    await admin.fill("#luF [name=name]", "Pdt. Contoh Utama"); await admin.selectOption("#luF [name=tier]", "utama"); await admin.click("#luF button");
-    await admin.waitForSelector("text=Pdt. Contoh Utama");
+    // contoh file: foto pembicara + lagu kecil + lagu besar (> 4 MB, harus dikecilkan di browser)
+    const FX = path.join(DATA, "fx"); fs.mkdirSync(FX, { recursive: true });
+    const ff = (args) => require("child_process").execFileSync("ffmpeg", ["-loglevel", "error", "-y", ...args]);
+    ff(["-f", "lavfi", "-i", "testsrc=size=640x800:rate=1", "-frames:v", "1", path.join(FX, "pembicara.jpg")]);
+    ff(["-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-ac", "2", "-b:a", "128k", path.join(FX, "kecil.mp3")]);
+    ff(["-f", "lavfi", "-i", "anoisesrc=d=200:c=pink:a=0.2", "-ac", "2", "-b:a", "192k", path.join(FX, "besar.mp3")]);
+    await admin.fill("#luF [name=name]", "Pdt. Contoh Utama"); await admin.selectOption("#luF [name=tier]", "utama");
+    await admin.setInputFiles("#luF [name=photo]", path.join(FX, "pembicara.jpg"));
+    await admin.click("#luF button");
+    await admin.waitForSelector("img.lu-thumb");
+    const lu1 = (await api("GET", "/api/public")).data.lineup.find((l) => l.name === "Pdt. Contoh Utama");
+    check(lu1 && /^\/uploads\/lineup-.*\.jpg$/.test(lu1.photo_url) && (await fetch(BASE + lu1.photo_url)).ok, "Admin mengunggah foto pembicara di lineup");
+    await admin.fill("#musicF [name=title]", "Sukacita Melimpah · NDC Worship");
+    await admin.setInputFiles("#musicF [name=file]", path.join(FX, "kecil.mp3"));
+    await admin.click("#musicBtn");
+    await admin.waitForSelector(".music-now audio");
+    let S1 = (await api("GET", "/api/public")).data.settings;
+    check(S1.music_title === "Sukacita Melimpah · NDC Worship" && /\.mp3$/.test(S1.music_url) && (await fetch(BASE + S1.music_url)).ok, "Admin mengunggah lagu latar MP3 beserta judulnya");
+    const bigSize = fs.statSync(path.join(FX, "besar.mp3")).size;
+    await admin.setInputFiles("#musicF [name=file]", path.join(FX, "besar.mp3"));
+    await admin.click("#musicBtn");
+    await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S1.music_url, { timeout: 120000 });
+    const S2 = (await api("GET", "/api/public")).data.settings;
+    const upSize = Number((await fetch(BASE + S2.music_url)).headers.get("content-length"));
+    check(upSize > 1_000_000 && upSize < 4_400_000 && !fs.existsSync(path.join(DATA, "uploads", path.basename(S1.music_url))),
+      `Lagu ${(bigSize / 1e6).toFixed(1)} MB otomatis dikecilkan jadi ${(upSize / 1e6).toFixed(1)} MB, lagu lama terhapus`);
+    await admin.fill("#musicF [name=title]", "Sukacita Melimpah · NDC Worship");
+    await admin.setInputFiles("#musicF [name=file]", path.join(FX, "kecil.mp3"));
+    await admin.click("#musicBtn");
+    await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S2.music_url);
     await admin.fill("#luF [name=name]", "Bintang Tamu Contoh"); await admin.selectOption("#luF [name=tier]", "tamu"); await admin.click("#luF button");
     await admin.waitForTimeout(400);
     check((await api("GET", "/api/public")).data.settings.fee_per_person === 150000, "Biaya per peserta tersimpan");
@@ -77,6 +105,13 @@ async function api(method, url, body, cookie) {
     await pub.goto(BASE + "/");
     await pub.waitForSelector(".ecard");
     check(!(await pub.$("#regForm")), "Landing page tidak memuat formulir pendaftaran");
+    check(!/Unsplash/i.test(await pub.locator("footer").innerText()), "Kredit foto tidak tampil di footer");
+    await pub.waitForSelector(".scard img.face");
+    check(await pub.locator(".scard img.face").first().getAttribute("src") === lu1.photo_url, "Lineup di website memakai foto pembicara");
+    check(/Sukacita Melimpah/.test(await pub.textContent("#npTitle")), "Pemutar menampilkan judul lagu yang diunggah");
+    await pub.locator("h1").first().click();
+    await pub.waitForFunction(() => /Sedang diputar/.test(document.querySelector("#npState").textContent), null, { timeout: 8000 }).catch(() => {});
+    check(/Sedang diputar/.test(await pub.textContent("#npState")), "Lagu langsung diputar pada sentuhan pertama");
     await pub.screenshot({ path: path.join(SHOTS, "landing-mobile.png"), fullPage: false });
     await pub.click("#heroCta");
     await pub.waitForURL(/\/daftar\.html/);
@@ -87,19 +122,20 @@ async function api(method, url, body, cookie) {
     await pub.selectOption("#church", churchVal);
     await pub.fill("#coord", "Rina Koordinator"); await pub.fill("#phone", "0812 3456 7890");
     const rows = pub.locator(".prow");
-    const fillRow = async (i, name, role, g, age) => {
+    const fillRow = async (i, name, role, g) => {
       const r = rows.nth(i);
       await r.locator("[data-f=name]").fill(name);
       await r.locator(`input[value=${role}]`).check({ force: true });
-      await r.locator("select").selectOption(g);
-      await r.locator(".a").fill(String(age));
+      if (g) await r.locator(`input[data-f=gender][value=${g}]`).check({ force: true });
     };
-    await fillRow(0, "Pdt. Yohanes", "gembala", "L", 45);
-    await fillRow(1, "Maria Angelina", "peserta", "P", 17);
-    await fillRow(2, "Kevin Pratama", "peserta", "L", 19);
+    await fillRow(0, "Pdt. Yohanes", "gembala", "L");
+    await fillRow(1, "Maria Angelina", "peserta", "P");
+    await fillRow(2, "Kevin Pratama", "peserta", null);
+    check(!(await pub.$("[data-f=age]")) && !(await pub.$("#consent")), "Formulir tidak lagi menanyakan usia");
+    check(await pub.locator(".prow").first().locator("input[data-f=gender]").count() === 2, "Jenis kelamin hanya dua pilihan: Laki-laki dan Perempuan");
     await pub.click("#submitBtn");
-    check(await pub.locator("#formErr").isVisible() && /izin orang tua/.test(await pub.locator("#formErr").textContent()), "Formulir menolak peserta di bawah 18 tanpa izin orang tua");
-    await pub.check("#consent");
+    check(await pub.locator("#formErr").isVisible() && /jenis kelamin/.test(await pub.locator("#formErr").textContent()), "Formulir menolak peserta tanpa jenis kelamin");
+    await fillRow(2, "Kevin Pratama", "peserta", "L");
     await pub.click("#submitBtn");
     await pub.waitForURL(/status\.html/);
     await pub.waitForSelector(".code");
@@ -133,7 +169,7 @@ async function api(method, url, body, cookie) {
     // tambah data lain lewat API untuk mengisi nominasi
     const churchesList = (await api("GET", "/api/admin/churches", null, cookie)).data;
     const cid = (name) => churchesList.find((c) => c.name.startsWith(name)).id;
-    const mk = (n, prefix) => Array.from({ length: n }, (_, i) => ({ name: `${prefix} ${i + 1}`, role: i === 0 ? "gembala" : "peserta", gender: i % 2 ? "P" : "L", age: 18 + i }));
+    const mk = (n, prefix) => Array.from({ length: n }, (_, i) => ({ name: `${prefix} ${i + 1}`, role: i === 0 ? "gembala" : "peserta", gender: i % 2 ? "P" : "L" }));
     await api("POST", "/api/admin/registrations", { church_id: cid("GKII"), coordinator: "Andre", phone: "081211112222", status: "lunas", participants: mk(8, "Peserta GKII") }, cookie);
     await api("POST", "/api/admin/registrations", { church_id: cid("GBI"), coordinator: "Sinta", phone: "081233334444", status: "lunas", participants: mk(5, "Peserta GBI") }, cookie);
     await api("POST", "/api/admin/registrations", { church_id: cid("GKE"), coordinator: "Daniel", phone: "081255556666", status: "menunggu", participants: mk(4, "Peserta GKE") }, cookie);

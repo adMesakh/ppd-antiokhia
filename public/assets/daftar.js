@@ -34,7 +34,7 @@
   }
 
   let rows = [], rid = 0;
-  const newRow = () => ({ k: ++rid, name: "", role: "peserta", gender: "", age: "" });
+  const newRow = () => ({ k: ++rid, name: "", role: "peserta", gender: "" });
   function renderRows() {
     $("#plist").innerHTML = rows.map((r, i) => `
       <div class="prow" data-k="${r.k}">
@@ -46,12 +46,10 @@
             <label><input type="radio" name="ps${r.k}" value="gembala" data-f="role"${r.role === "gembala" ? " checked" : ""}>Gembala sidang</label>
             <label><input type="radio" name="ps${r.k}" value="peserta" data-f="role"${r.role === "peserta" ? " checked" : ""}>Peserta</label>
           </div>
-          <select aria-label="Jenis kelamin peserta ${i + 1}" data-f="gender">
-            <option value="">Jenis kelamin</option>
-            <option value="L"${r.gender === "L" ? " selected" : ""}>Laki-laki</option>
-            <option value="P"${r.gender === "P" ? " selected" : ""}>Perempuan</option>
-          </select>
-          <input class="a" aria-label="Usia peserta ${i + 1}" inputmode="numeric" maxlength="2" value="${esc(r.age)}" placeholder="Usia" data-f="age">
+          <div class="radios g" role="radiogroup" aria-label="Jenis kelamin peserta ${i + 1}">
+            <label><input type="radio" name="pg${r.k}" value="L" data-f="gender"${r.gender === "L" ? " checked" : ""}>Laki-laki</label>
+            <label><input type="radio" name="pg${r.k}" value="P" data-f="gender"${r.gender === "P" ? " checked" : ""}>Perempuan</label>
+          </div>
         </div>
       </div>`).join("");
     updateSum();
@@ -93,16 +91,15 @@
     if ($("#coord").value.trim().length < 2) problems.push("nama koordinator");
     if (!/^(\+62|62|0)8\d{7,12}$/.test($("#phone").value.replace(/[\s-]/g, ""))) problems.push("nomor WhatsApp yang valid (mulai 08…)");
     if (!filled.length) problems.push("minimal satu peserta");
-    if (filled.some((r) => !r.gender || !/^\d{1,2}$/.test(String(r.age).trim()))) problems.push("jenis kelamin dan usia setiap peserta");
-    if (filled.some((r) => +r.age < 18) && !$("#consent").checked) problems.push("persetujuan izin orang tua untuk peserta di bawah 18 tahun");
+    if (filled.some((r) => !r.gender)) problems.push("jenis kelamin setiap peserta");
     if (problems.length) { err.textContent = "Lengkapi dulu: " + problems.join(", ") + "."; err.hidden = false; return; }
     const btn = $("#submitBtn"); btn.disabled = true; btn.textContent = "Mengirim…";
     try {
       const res = await fetch("/api/registrations", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          church_id: Number($("#church").value), coordinator: $("#coord").value, phone: $("#phone").value, consent: $("#consent").checked,
-          participants: filled.map((r) => ({ name: r.name, role: r.role, gender: r.gender, age: Number(r.age) })),
+          church_id: Number($("#church").value), coordinator: $("#coord").value, phone: $("#phone").value,
+          participants: filled.map((r) => ({ name: r.name, role: r.role, gender: r.gender })),
         }),
       });
       const data = await res.json();

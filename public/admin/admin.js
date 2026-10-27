@@ -6,6 +6,7 @@
   const rupiah = (n) => "Rp" + Math.round(n || 0).toLocaleString("id-ID");
   const fmtTime = (iso) => iso ? new Date(iso).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
   const ROLE = { gembala: "Gembala sidang", peserta: "Peserta" };
+  const GENDER = { L: "Laki-laki", P: "Perempuan" };
   const STATUS = { menunggu: "Menunggu", lunas: "Lunas", batal: "Batal" };
   const KIND = { checkin: "Check-in", seminar: "Seminar" };
   const view = $("#view");
@@ -105,7 +106,6 @@
         <div class="tile"><b>${s.churches.paid}<span style="font-size:1.2rem;color:var(--muted)"> / ${s.churches.total}</span></b><span>gereja sudah lunas</span></div>
         <div class="tile"><b>${s.participants.pastors}</b><span>gembala sidang</span></div>
         <div class="tile"><b>${s.participants.male} · ${s.participants.female}</b><span>laki-laki · perempuan</span></div>
-        <div class="tile"><b>${s.participants.minors}</b><span>peserta di bawah 18 tahun</span></div>
         <div class="tile"><b style="font-size:1.6rem">${rupiah(s.money.received)}</b><span>uang diterima</span></div>
         <div class="tile"><b>${s.attendance.scans}</b><span>scan kehadiran masuk</span><small>${s.attendance.people} orang · terakhir ${fmtTime(s.attendance.last)}</small></div>
       </div>
@@ -175,8 +175,8 @@
         <dt>Tautan status</dt><dd><a href="${esc(r.status_url)}" target="_blank" rel="noopener">${esc(location.origin + r.status_url)}</a></dd>
         ${r.note ? `<dt>Catatan</dt><dd>${esc(r.note)}</dd>` : ""}
       </dl>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Status</th><th>JK</th><th>Usia</th><th>Scan</th><th></th></tr></thead><tbody>
-        ${r.participants.map((p) => `<tr><td class="num">${p.seq}</td><td>${esc(p.name)}<span class="sub mono">${esc(p.code)}</span></td><td><span class="role ${p.role}">${ROLE[p.role]}</span></td><td>${p.gender}</td><td class="num">${p.age}</td><td class="num">${p.scans}</td>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Status</th><th>Jenis kelamin</th><th>Scan</th><th></th></tr></thead><tbody>
+        ${r.participants.map((p) => `<tr><td class="num">${p.seq}</td><td>${esc(p.name)}<span class="sub mono">${esc(p.code)}</span></td><td><span class="role ${p.role}">${ROLE[p.role]}</span></td><td>${GENDER[p.gender] || "-"}</td><td class="num">${p.scans}</td>
           <td class="actions"><button class="btn sm" data-edit-p="${p.id}">Ubah</button> <button class="btn sm danger" data-del-p="${p.id}" ${p.scans ? "disabled title='Sudah punya data kehadiran'" : ""}>Hapus</button></td></tr>`).join("")}
       </tbody></table></div>
       <div><button class="btn sm" data-add-p>+ Tambah peserta</button></div>
@@ -227,11 +227,10 @@
     return `<div class="prow" data-row>
       <input name="name" placeholder="Nama lengkap" value="${esc(p.name || "")}" aria-label="Nama peserta ${i + 1}">
       <select name="role" aria-label="Status"><option value="peserta"${p.role !== "gembala" ? " selected" : ""}>Peserta</option><option value="gembala"${p.role === "gembala" ? " selected" : ""}>Gembala sidang</option></select>
-      <select name="gender" aria-label="Jenis kelamin"><option value="">JK</option><option value="L"${p.gender === "L" ? " selected" : ""}>Laki-laki</option><option value="P"${p.gender === "P" ? " selected" : ""}>Perempuan</option></select>
-      <input name="age" type="number" min="5" max="99" placeholder="Usia" value="${esc(p.age || "")}" aria-label="Usia">
+      <select name="gender" aria-label="Jenis kelamin"><option value="" disabled hidden${p.gender ? "" : " selected"}>Jenis kelamin</option><option value="L"${p.gender === "L" ? " selected" : ""}>Laki-laki</option><option value="P"${p.gender === "P" ? " selected" : ""}>Perempuan</option></select>
       <button type="button" class="btn ghost sm" data-rm aria-label="Hapus baris">✕</button></div>`;
   }
-  const readRow = (row) => ({ name: $("[name=name]", row).value, role: $("[name=role]", row).value, gender: $("[name=gender]", row).value, age: Number($("[name=age]", row).value) });
+  const readRow = (row) => ({ name: $("[name=name]", row).value, role: $("[name=role]", row).value, gender: $("[name=gender]", row).value });
 
   function participantForm(p, onSave, onBack) {
     const body = openDialog(`<div class="dlg-head"><h2>${p ? "Ubah peserta" : "Tambah peserta"}</h2></div>
@@ -304,10 +303,10 @@
     const list = await GET("/api/admin/participants?" + q);
     $("#pCount").textContent = `${list.length} peserta`;
     $("#printSel").textContent = "Cetak ID card";
-    $("#pTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Pilih semua"></th><th>Nama</th><th>Status</th><th>Gereja</th><th>JK / usia</th><th>Pendaftaran</th><th>Scan</th><th></th></tr></thead><tbody>
+    $("#pTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Pilih semua"></th><th>Nama</th><th>Status</th><th>Gereja</th><th>Jenis kelamin</th><th>Pendaftaran</th><th>Scan</th><th></th></tr></thead><tbody>
       ${list.map((p) => `<tr><td>${p.status === "lunas" ? `<input type="checkbox" data-sel value="${p.id}" aria-label="Pilih ${esc(p.name)}">` : ""}</td>
         <td>${esc(p.name)}<span class="sub mono">${esc(p.code)}</span></td><td><span class="role ${p.role}">${ROLE[p.role]}</span></td><td>${esc(p.church)}</td>
-        <td>${p.gender} · ${p.age}</td><td><a href="#pendaftaran/${p.registration_id}" class="mono">${esc(p.registration_code)}</a> <span class="pill ${p.status}">${STATUS[p.status]}</span></td><td class="num">${p.scans}</td>
+        <td>${GENDER[p.gender] || "-"}</td><td><a href="#pendaftaran/${p.registration_id}" class="mono">${esc(p.registration_code)}</a> <span class="pill ${p.status}">${STATUS[p.status]}</span></td><td class="num">${p.scans}</td>
         <td class="actions">${p.status === "lunas" ? `<button class="btn sm" data-qr="${p.id}">Lihat QR</button>` : `<span class="muted">QR belum terbit</span>`}</td></tr>`).join("")}
       </tbody></table></div>` : `<div class="card empty">Tidak ada peserta yang cocok.</div>`;
     const sel = $("#selAll");
@@ -588,11 +587,21 @@
           <label>Kontak panitia<input name="contact" value="${esc(s.contact)}" placeholder="mis. Kak Rina · 0812…"></label>
           <label class="span2">Catatan pembayaran<input name="payment_note" value="${esc(s.payment_note)}"></label>
           <label>Awalan kode pendaftaran<input name="code_prefix" value="${esc(s.code_prefix)}" maxlength="8"></label>
-          <label class="span2">File musik latar (opsional)<input name="music_url" value="${esc(s.music_url)}" placeholder="Kosongkan untuk memakai pad bawaan"><span class="hint">Hanya musik yang sudah mendapat izin pemakaian. Isi dengan alamat file MP3.</span></label>
           <label class="span2">Tautan Spotify / playlist<input name="spotify_url" value="${esc(s.spotify_url)}"></label>
         </div>
         <div><button class="btn primary">Simpan konten</button></div>
       </form>
+      <div class="card" id="musicCard">
+        <div class="card-head"><div><h3>Lagu latar</h3><p class="muted">Diputar di halaman depan. Pakai lagu yang panitia punya izin pemakaiannya.</p></div></div>
+        ${s.music_url ? `<div class="music-now"><div><b>${esc(s.music_title || "Lagu latar")}</b><span class="muted">Sedang dipakai di website</span></div><audio controls preload="none" src="${esc(s.music_url)}"></audio><button type="button" class="btn sm danger" id="musicDel">Hapus lagu</button></div>`
+          : `<p class="muted">Belum ada lagu. Website memutar pad worship bawaan.</p>`}
+        <form id="musicF" class="form-grid">
+          <label>Judul yang ditampilkan<input name="title" value="${esc(s.music_title)}" placeholder="mis. Sukacita Melimpah · NDC Worship" maxlength="120"></label>
+          <label>File MP3<input type="file" name="file" accept="audio/mpeg,.mp3" required><span class="hint">File di atas 4 MB otomatis dikecilkan dulu di laptop ini.</span></label>
+          <div style="align-self:end"><button class="btn primary" id="musicBtn">Unggah lagu</button></div>
+        </form>
+        <div id="musicStatus" class="muted" role="status"></div>
+      </div>
       <div class="card">
         <div class="card-head"><div><h3>Lineup</h3><p class="muted">Tampil sebagai poster festival. Urutan kecil tampil lebih dulu.</p></div></div>
         <form id="luF" class="form-grid">
@@ -600,10 +609,15 @@
           <label>Peran<select name="tier"><option value="utama">Pembicara utama</option><option value="pembicara">Pembicara</option><option value="tamu">Bintang tamu</option></select></label>
           <label>Keterangan (opsional)<input name="note" placeholder="mis. Gembala GBI Pontianak"></label>
           <label>Urutan<input name="sort" type="number" value="0"></label>
+          <label>Foto (opsional)<input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
           <div style="align-self:end"><button class="btn primary">Tambah</button></div>
         </form>
-        ${lineup.length ? `<div class="table-wrap"><table><thead><tr><th>Nama</th><th>Peran</th><th>Keterangan</th><th>Urutan</th><th></th></tr></thead><tbody>
-          ${lineup.map((l) => `<tr><td><b>${esc(l.name)}</b></td><td>${TIER[l.tier]}</td><td>${esc(l.note)}</td><td class="num">${l.sort}</td><td class="actions"><button class="btn sm danger" data-del-lu="${l.id}">Hapus</button></td></tr>`).join("")}
+        ${lineup.length ? `<div class="table-wrap"><table><thead><tr><th>Foto</th><th>Nama</th><th>Peran</th><th>Keterangan</th><th>Urutan</th><th></th></tr></thead><tbody>
+          ${lineup.map((l) => `<tr><td>${l.photo_url ? `<img class="lu-thumb" src="${esc(l.photo_url)}" alt="">` : `<span class="lu-thumb empty" aria-hidden="true">${esc(l.name.trim()[0] || "?")}</span>`}</td>
+            <td><b>${esc(l.name)}</b></td><td>${TIER[l.tier]}</td><td>${esc(l.note)}</td><td class="num">${l.sort}</td>
+            <td class="actions"><label class="btn sm">${l.photo_url ? "Ganti foto" : "Unggah foto"}<input type="file" accept="image/jpeg,image/png,image/webp" data-lu-photo="${l.id}" hidden></label>
+              ${l.photo_url ? `<button class="btn sm" data-lu-nophoto="${l.id}">Hapus foto</button>` : ""}
+              <button class="btn sm danger" data-del-lu="${l.id}">Hapus</button></td></tr>`).join("")}
         </tbody></table></div>` : `<p class="muted">Belum ada nama. Website menampilkan "Lineup diumumkan segera".</p>`}
       </div>`;
     $("#setF").onsubmit = async (e) => {
@@ -614,12 +628,88 @@
       if (!v.start_at) delete v.start_at; if (!v.end_at) delete v.end_at;
       try { await PUT("/api/admin/settings", v); toast("Konten disimpan"); } catch (x) { fail(x); }
     };
-    $("#luF").onsubmit = async (e) => { e.preventDefault(); const v = Object.fromEntries(new FormData(e.target)); v.sort = Number(v.sort); try { await POST("/api/admin/lineup", v); toast("Ditambahkan"); VIEWS.konten(); } catch (x) { fail(x); } };
+    $("#luF").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target), photo = f.get("photo");
+      const v = { name: f.get("name"), tier: f.get("tier"), note: f.get("note"), sort: Number(f.get("sort")) };
+      try {
+        const r = await POST("/api/admin/lineup", v);
+        if (photo && photo.size) await POST(`/api/admin/lineup/${r.id}/photo`, await shrink(photo, 900));
+        toast("Ditambahkan"); VIEWS.konten();
+      } catch (x) { fail(x); }
+    };
+    $("#musicF").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target), file = f.get("file"), st = $("#musicStatus"), btn = $("#musicBtn");
+      if (!file || !file.size) return;
+      btn.disabled = true;
+      try {
+        const blob = await fitMusic(file, (m) => (st.textContent = m));
+        st.textContent = "Mengunggah lagu…";
+        const res = await fetch("/api/admin/music?title=" + encodeURIComponent(f.get("title") || ""), { method: "POST", credentials: "same-origin", headers: { "X-RPK": "1", "Content-Type": "audio/mpeg" }, body: blob });
+        const data = await res.json().catch(() => null);
+        if (res.status === 401) { showLogin(); return; }
+        if (!res.ok) throw new Error(data?.error || "Gagal mengunggah lagu.");
+        toast("Lagu latar dipasang"); VIEWS.konten();
+      } catch (x) { st.textContent = ""; fail(x); } finally { btn.disabled = false; }
+    };
+    if ($("#musicDel")) $("#musicDel").onclick = async () => {
+      if (!(await confirmBox("Hapus lagu latar?", "Website kembali memutar pad worship bawaan.", "Hapus"))) return;
+      try { await DEL("/api/admin/music"); toast("Lagu dihapus"); VIEWS.konten(); } catch (x) { fail(x); }
+    };
+    view.onchange = async (e) => {
+      const inp = e.target.closest("[data-lu-photo]"); if (!inp || !inp.files[0]) return;
+      try { toast("Mengunggah foto…"); await POST(`/api/admin/lineup/${inp.dataset.luPhoto}/photo`, await shrink(inp.files[0], 900)); toast("Foto disimpan"); VIEWS.konten(); } catch (x) { fail(x); }
+    };
     view.onclick = async (e) => {
+      const np = e.target.closest("[data-lu-nophoto]");
+      if (np) { try { await DEL(`/api/admin/lineup/${np.dataset.luNophoto}/photo`); toast("Foto dihapus"); VIEWS.konten(); } catch (x) { fail(x); } return; }
       const d = e.target.closest("[data-del-lu]"); if (!d) return;
+      if (!(await confirmBox("Hapus dari lineup?", "Nama dan fotonya hilang dari website.", "Hapus"))) return;
       try { await DEL(`/api/admin/lineup/${d.dataset.delLu}`); toast("Dihapus"); VIEWS.konten(); } catch (x) { fail(x); }
     };
   };
+
+  // Lagu di atas ±4 MB dikodekan ulang menjadi MP3 yang lebih kecil (lamejs, LGPL) supaya muat di batas unggah Vercel.
+  const MUSIC_MAX = 4_200_000;
+  function loadLame() {
+    if (window.lamejs) return Promise.resolve();
+    return new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "/vendor/lame/lame.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("Gagal memuat pengubah MP3.")); document.head.appendChild(sc); });
+  }
+  async function fitMusic(file, say) {
+    if (file.size <= MUSIC_MAX) return file;
+    say("Membaca lagu…");
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    let audio;
+    try { audio = await ctx.decodeAudioData(await file.arrayBuffer()); } catch (_) { throw new Error("File lagu tidak bisa dibaca. Pastikan formatnya MP3."); } finally { ctx.close && ctx.close(); }
+    await loadLame();
+    const rate = [44100, 48000, 32000].includes(audio.sampleRate) ? audio.sampleRate : 44100;
+    const target = Math.floor((MUSIC_MAX * 8) / audio.duration / 1000);
+    const kbps = [128, 112, 96, 80, 64, 56, 48, 40, 32].find((k) => k <= target);
+    if (!kbps) throw new Error("Lagu terlalu panjang. Potong lagu menjadi kurang dari 15 menit.");
+    const chans = Math.min(2, audio.numberOfChannels);
+    const toI16 = (f32) => { const o = new Int16Array(f32.length); for (let i = 0; i < f32.length; i++) { const x = Math.max(-1, Math.min(1, f32[i])); o[i] = x < 0 ? x * 0x8000 : x * 0x7fff; } return o; };
+    // sampleRate audio dari decodeAudioData mengikuti AudioContext; resample sederhana bila perlu
+    let L = audio.getChannelData(0), R = chans > 1 ? audio.getChannelData(1) : null;
+    if (audio.sampleRate !== rate) {
+      const off = new OfflineAudioContext(chans, Math.ceil(audio.duration * rate), rate);
+      const src = off.createBufferSource(); src.buffer = audio; src.connect(off.destination); src.start();
+      const r = await off.startRendering(); L = r.getChannelData(0); R = chans > 1 ? r.getChannelData(1) : null;
+    }
+    const l16 = toI16(L), r16 = R ? toI16(R) : null;
+    const enc = new lamejs.Mp3Encoder(chans, rate, kbps);
+    const out = []; const BLOCK = 1152 * 20;
+    for (let i = 0; i < l16.length; i += BLOCK) {
+      const chunk = r16 ? enc.encodeBuffer(l16.subarray(i, i + BLOCK), r16.subarray(i, i + BLOCK)) : enc.encodeBuffer(l16.subarray(i, i + BLOCK));
+      if (chunk.length) out.push(new Uint8Array(chunk));
+      if (i % (BLOCK * 40) === 0) { say(`Mengecilkan lagu… ${Math.round((i / l16.length) * 100)}%`); await new Promise((r) => setTimeout(r)); }
+    }
+    const end = enc.flush(); if (end.length) out.push(new Uint8Array(end));
+    const blob = new Blob(out, { type: "audio/mpeg" });
+    if (blob.size > MUSIC_MAX + 150_000) throw new Error("Lagu masih terlalu besar setelah dikecilkan.");
+    return blob;
+  }
 
   // =====================================================================
   // AKUN

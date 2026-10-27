@@ -40,7 +40,12 @@
       });
     }
     return {
-      start() { ctx.resume(); if (!timer) { chord(); timer = setInterval(chord, 4800); } },
+      async start() {
+        await Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 300))]);
+        if (ctx.state !== "running") return;
+        if (!timer) { chord(); timer = setInterval(chord, 4800); }
+      },
+      blocked: () => ctx.state !== "running",
       stop() { clearInterval(timer); timer = null; ctx.suspend(); },
       level() {
         const d = new Uint8Array(analyser.fftSize); analyser.getByteTimeDomainData(d);
@@ -52,10 +57,11 @@
 
   // --- Mesin file audio ---
   function fileEngine(url) {
-    const a = new Audio(url); a.loop = true; a.preload = "none"; a.volume = 0.7;
+    const a = new Audio(url); a.loop = true; a.preload = "auto"; a.volume = 0.7;
     let phase = 0;
     return {
       start() { return a.play(); },
+      blocked: () => a.paused,
       stop() { a.pause(); },
       level() { phase += 0.3; return a.paused ? 0 : Math.round(4 + 3 * Math.abs(Math.sin(phase)) + Math.random() * 2); },
     };
@@ -74,12 +80,14 @@
     btn.setAttribute("aria-label", playing ? "Hentikan musik latar" : "Putar musik latar");
     state.textContent = playing ? "Sedang diputar" : muted ? "Dihentikan" : "Mulai saat kamu menyentuh halaman";
   }
-  function start() {
+  // Mengembalikan true bila suara benar-benar berbunyi
+  async function start() {
     if (!engine) engine = musicUrl ? fileEngine(musicUrl) : padEngine();
-    if (!engine) return;
-    const p = engine.start();
+    if (!engine) return false;
+    try { await engine.start(); } catch (_) { playing = false; ui(); return false; }
+    if (engine.blocked && engine.blocked()) { engine.stop(); playing = false; ui(); return false; }
     playing = true; ui(); meter();
-    if (p && p.catch) p.catch(() => { playing = false; ui(); });
+    return true;
   }
   function stop() { if (engine) engine.stop(); playing = false; ui(); }
 
@@ -87,18 +95,33 @@
     if (playing) { stop(); muted = true; } else { muted = false; start(); }
     try { localStorage.setItem("rpk-muted", muted ? "1" : "0"); } catch (_) {}
   });
-  function firstTouch(e) {
+  // Browser hanya mengizinkan suara setelah pengunjung menyentuh, mengklik, atau menekan tombol.
+  const GESTURES = ["pointerdown", "keydown", "touchend", "click"];
+  async function firstTouch(e) {
     if (e.target && e.target.closest && e.target.closest("#muteBtn")) return;
-    ["pointerdown", "keydown", "touchstart"].forEach((t) => document.removeEventListener(t, firstTouch, true));
-    if (!muted && !playing) start();
+    if (muted || playing) return removeGesture();
+    if (await start()) removeGesture();
   }
-  ["pointerdown", "keydown", "touchstart"].forEach((t) => document.addEventListener(t, firstTouch, true));
+  function removeGesture() { GESTURES.forEach((t) => document.removeEventListener(t, firstTouch, true)); }
+  GESTURES.forEach((t) => document.addEventListener(t, firstTouch, true));
   ui();
+
+  // Coba langsung putar begitu halaman siap. Berhasil bila browser mengizinkan (misalnya pengunjung yang sering datang);
+  // bila diblokir, musik mulai pada sentuhan pertama.
+  let tried = false;
+  async function tryAutoplay() {
+    if (tried || muted || playing) return;
+    tried = true;
+    if (await start()) removeGesture();
+  }
 
   window.RPKMusic = {
     configure({ url, label }) {
       if (url && !engine) musicUrl = url;
       if (label) title.textContent = label;
+      tryAutoplay();
     },
   };
+  // Bila data website gagal dimuat, tetap coba pad bawaan
+  setTimeout(tryAutoplay, 4000);
 })();
