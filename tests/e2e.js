@@ -97,18 +97,30 @@ async function api(method, url, body, cookie) {
     await admin.waitForSelector(".music-now audio");
     let S1 = (await api("GET", "/api/public")).data.settings;
     check(S1.music_title === "Sukacita Melimpah · NDC Worship" && /\.mp3$/.test(S1.music_url) && (await fetch(BASE + S1.music_url)).ok, "Admin mengunggah lagu latar MP3 beserta judulnya");
+    const playableIn = (pg, u) => pg.evaluate((u) => new Promise((ok) => { const a = new Audio(); a.onloadedmetadata = () => ok(a.duration); a.onerror = () => ok(-1); a.src = u; setTimeout(() => ok(0), 10000); }), u);
+    // lagu 4,8 MB (lebih dari batas satu permintaan Vercel) dikirim per potongan tanpa diubah
     const bigSize = fs.statSync(path.join(FX, "besar.mp3")).size;
     await admin.setInputFiles("#musicF [name=file]", path.join(FX, "besar.mp3"));
     await admin.click("#musicBtn");
     await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S1.music_url, { timeout: 120000 });
     const S2 = (await api("GET", "/api/public")).data.settings;
-    const upSize = Number((await fetch(BASE + S2.music_url)).headers.get("content-length"));
-    check(upSize > 1_000_000 && upSize < 4_400_000 && !fs.existsSync(path.join(DATA, "uploads", path.basename(S1.music_url))),
-      `Lagu ${(bigSize / 1e6).toFixed(1)} MB otomatis dikecilkan jadi ${(upSize / 1e6).toFixed(1)} MB, lagu lama terhapus`);
+    const up2 = Buffer.from(await (await fetch(BASE + S2.music_url)).arrayBuffer());
+    check(up2.equals(fs.readFileSync(path.join(FX, "besar.mp3"))) && await playableIn(admin, S2.music_url) > 190 && !fs.existsSync(path.join(DATA, "uploads", path.basename(S1.music_url))),
+      `Lagu ${(bigSize / 1e6).toFixed(1)} MB terunggah utuh per potongan (byte sama persis), bisa diputar, lagu lama terhapus`);
+    check((await api("GET", "/api/admin/settings", null, cookie)).status === 200 && (await api("POST", "/api/admin/music/finish", { upload_id: "abcdefabcdef12", total: 2, size: 10 }, cookie)).status === 400, "Unggahan lagu yang potongannya hilang ditolak");
+    // lagu > 15 MB dikecilkan dulu di browser
+    ff(["-f", "lavfi", "-i", "anoisesrc=d=420:c=pink:a=0.2", "-ac", "2", "-b:a", "320k", path.join(FX, "raksasa.mp3")]);
+    await admin.setInputFiles("#musicF [name=file]", path.join(FX, "raksasa.mp3"));
+    await admin.click("#musicBtn");
+    await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S2.music_url, { timeout: 240000 });
+    const S3 = (await api("GET", "/api/public")).data.settings;
+    const up3 = Number((await fetch(BASE + S3.music_url)).headers.get("content-length"));
+    const d3 = await playableIn(admin, S3.music_url);
+    check(up3 < 15.8e6 && d3 > 400, `Lagu ${(fs.statSync(path.join(FX, "raksasa.mp3")).size / 1e6).toFixed(1)} MB dikecilkan jadi ${(up3 / 1e6).toFixed(1)} MB dan tetap bisa diputar (${Math.round(d3)} detik)`);
     await admin.fill("#musicF [name=title]", "Sukacita Melimpah · NDC Worship");
     await admin.setInputFiles("#musicF [name=file]", path.join(FX, "kecil.mp3"));
     await admin.click("#musicBtn");
-    await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S2.music_url);
+    await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S3.music_url);
     await admin.fill("#luF [name=name]", "Bintang Tamu Contoh"); await admin.selectOption("#luF [name=tier]", "tamu"); await admin.click("#luF button");
     await admin.waitForTimeout(400);
     check((await api("GET", "/api/public")).data.settings.fee_per_person === 150000, "Biaya per peserta tersimpan");

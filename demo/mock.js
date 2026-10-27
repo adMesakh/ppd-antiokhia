@@ -184,7 +184,12 @@
   });
   on("POST", /^\/api\/admin\/lineup\/(\d+)\/photo$/, (m, q, b) => { const l = D.lineup.find((x) => x.id === +m[1]); if (!/^data:image\//.test(b.data || "")) throw E(400, "Format foto harus JPG, PNG, atau WebP."); if (l) l.photo_url = b.data; return { photo_url: b.data }; });
   on("DELETE", /^\/api\/admin\/lineup\/(\d+)\/photo$/, (m) => { const l = D.lineup.find((x) => x.id === +m[1]); if (l) l.photo_url = ""; return { ok: true }; });
-  on("POST", /^\/api\/admin\/music$/, (m, q, b, c) => { if (!(c.raw instanceof Blob)) throw E(400, "File lagu harus berformat MP3."); D.settings.music_url = URL.createObjectURL(c.raw); D.settings.music_title = clean(q.get("title"), 120); return D.settings; });
+  const chunks = {};
+  on("POST", /^\/api\/admin\/music\/chunk$/, (m, q, b) => { (chunks[b.upload_id] = chunks[b.upload_id] || [])[b.index] = b.data; return { ok: true }; });
+  on("POST", /^\/api\/admin\/music\/finish$/, (m, q, b) => {
+    const parts = (chunks[b.upload_id] || []).map((d) => Uint8Array.from(atob(d), (c) => c.charCodeAt(0))); delete chunks[b.upload_id];
+    D.settings.music_url = URL.createObjectURL(new Blob(parts, { type: "audio/mpeg" })); D.settings.music_title = clean(b.title, 120); return D.settings;
+  });
   on("DELETE", /^\/api\/admin\/music$/, () => { D.settings.music_url = ""; D.settings.music_title = ""; return D.settings; });
   on("DELETE", /^\/api\/admin\/lineup\/(\d+)$/, (m) => { D.lineup = D.lineup.filter((l) => l.id !== +m[1]); return { ok: true }; });
 

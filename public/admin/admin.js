@@ -692,7 +692,7 @@
           : `<p class="muted">Belum ada lagu. Website memutar pad worship bawaan.</p>`}
         <form id="musicF" class="form-grid">
           <label>Judul yang ditampilkan<input name="title" value="${esc(s.music_title)}" placeholder="mis. Sukacita Melimpah · NDC Worship" maxlength="120"></label>
-          <label>File MP3<input type="file" name="file" accept="audio/mpeg,.mp3" required><span class="hint">File di atas 4 MB otomatis dikecilkan dulu di laptop ini.</span></label>
+          <label>File MP3<input type="file" name="file" accept="audio/mpeg,.mp3" required><span class="hint">Maksimal 15 MB; file yang lebih besar otomatis dikecilkan dulu di laptop ini.</span></label>
           <div style="align-self:end"><button class="btn primary" id="musicBtn">Unggah lagu</button></div>
         </form>
         <div id="musicStatus" class="muted" role="status"></div>
@@ -740,11 +740,20 @@
       btn.disabled = true;
       try {
         const blob = await fitMusic(file, (m) => (st.textContent = m));
-        st.textContent = "Mengunggah lagu…";
-        const res = await fetch("/api/admin/music?title=" + encodeURIComponent(f.get("title") || ""), { method: "POST", credentials: "same-origin", headers: { "X-RPK": "1", "Content-Type": "audio/mpeg" }, body: blob });
-        const data = await res.json().catch(() => null);
-        if (res.status === 401) { showLogin(); return; }
-        if (!res.ok) throw new Error(data?.error || "Gagal mengunggah lagu.");
+        // dikirim per potongan ±2,4 MB sebagai JSON (aman untuk batas & cara Vercel memproses permintaan)
+        const CHUNK = 2_400_000, total = Math.ceil(blob.size / CHUNK);
+        const id = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 20);
+        const b64 = (part) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => no(new Error("Gagal membaca file lagu.")); r.readAsDataURL(part); });
+        for (let i = 0; i < total; i++) {
+          st.textContent = `Mengunggah lagu… ${Math.round((i / total) * 100)}%`;
+          await POST("/api/admin/music/chunk", { upload_id: id, index: i, total, data: await b64(blob.slice(i * CHUNK, (i + 1) * CHUNK)) });
+        }
+        st.textContent = "Menyimpan lagu…";
+        const saved = await POST("/api/admin/music/finish", { upload_id: id, total, size: blob.size, title: f.get("title") || "" });
+        // pastikan lagu benar-benar bisa diputar browser
+        st.textContent = "Memeriksa lagu…";
+        const playable = await new Promise((ok) => { const a = new Audio(); a.preload = "metadata"; a.onloadedmetadata = () => ok(a.duration > 0); a.onerror = () => ok(false); a.src = saved.music_url; setTimeout(() => ok(null), 12000); });
+        if (playable === false) throw new Error("Lagu terunggah, tapi browser tidak bisa memutarnya. Coba file MP3 lain atau ekspor ulang lagunya.");
         toast("Lagu latar dipasang"); VIEWS.konten();
       } catch (x) { st.textContent = ""; fail(x); } finally { btn.disabled = false; }
     };
@@ -765,8 +774,8 @@
     };
   };
 
-  // Lagu di atas ±4 MB dikodekan ulang menjadi MP3 yang lebih kecil (lamejs, LGPL) supaya muat di batas unggah Vercel.
-  const MUSIC_MAX = 4_200_000;
+  // Lagu di atas 15 MB dikodekan ulang menjadi MP3 yang lebih kecil (lamejs, LGPL).
+  const MUSIC_MAX = 15 * 1024 * 1024; // di atas ini lagu dikecilkan dulu
   function loadLame() {
     if (window.lamejs) return Promise.resolve();
     return new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "/vendor/lame/lame.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("Gagal memuat pengubah MP3.")); document.head.appendChild(sc); });

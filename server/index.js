@@ -361,13 +361,33 @@ A.del("/lineup/:id/photo", async (req, res) => {
 
 // --- Lagu latar landing page ---
 // Dikirim sebagai file mentah (bukan JSON) supaya muat di batas 4,5 MB Vercel. Dashboard mengecilkan lagu yang lebih besar.
-A.post("/music", express.raw({ type: () => true, limit: "4400kb" }), async (req, res) => {
-  const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+// Lagu dikirim sebagai JSON base64 dalam beberapa potongan (cara yang sama dengan foto),
+// karena Vercel bisa mengubah isi permintaan biner mentah. Potongan disimpan sementara di database lalu dirakit.
+const MUSIC_MAX = 15 * 1024 * 1024;
+A.post("/music/chunk", jsonLarge, async (req, res) => {
+  const id = String(req.body?.upload_id || ""), idx = Number(req.body?.index), total = Number(req.body?.total);
+  if (!/^[a-z0-9]{12,40}$/.test(id) || !Number.isInteger(idx) || !Number.isInteger(total) || idx < 0 || total < 1 || total > 12 || idx >= total) return bad(res, "Potongan lagu tidak valid.");
+  const data = String(req.body?.data || "");
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return bad(res, "Potongan lagu rusak.");
+  const buf = Buffer.from(data, "base64");
+  await query("DELETE FROM upload_chunks WHERE at < $1", [Date.now() - 6 * 3600e3]);
+  await query("INSERT INTO upload_chunks (upload_id, idx, data, at) VALUES ($1, $2, $3, $4) ON CONFLICT (upload_id, idx) DO UPDATE SET data = EXCLUDED.data, at = EXCLUDED.at", [id, idx, buf, Date.now()]);
+  res.status(201).json({ ok: true, size: buf.length });
+});
+A.post("/music/finish", jsonSmall, async (req, res) => {
+  const id = String(req.body?.upload_id || ""), total = Number(req.body?.total), size = Number(req.body?.size);
+  if (!/^[a-z0-9]{12,40}$/.test(id)) return bad(res, "Unggahan tidak valid.");
+  const rows = await many("SELECT idx, data FROM upload_chunks WHERE upload_id = $1 ORDER BY idx", [id]);
+  await query("DELETE FROM upload_chunks WHERE upload_id = $1", [id]);
+  if (rows.length !== total || rows.some((r, i) => r.idx !== i)) return bad(res, "Sebagian potongan lagu hilang. Coba unggah lagi.");
+  const buf = Buffer.concat(rows.map((r) => Buffer.from(r.data)));
+  if (buf.length !== size) return bad(res, `Ukuran lagu tidak cocok (${buf.length} dari ${size} byte). Coba unggah lagi.`);
+  if (buf.length > MUSIC_MAX) return bad(res, "Lagu maksimal 15 MB.");
   const isMp3 = buf.length > 1024 && (buf.subarray(0, 3).toString() === "ID3" || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0));
   if (!isMp3) return bad(res, "File lagu harus berformat MP3.");
   const before = await getSettings();
   const url = await storage.saveFile(buf, "musik", `lagu-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.mp3`, "audio/mpeg");
-  const s = await saveSettings({ music_url: url, music_title: cleanText(req.query.title, 120) });
+  const s = await saveSettings({ music_url: url, music_title: cleanText(req.body?.title, 120) });
   if (before.music_url && before.music_url !== url) await storage.removeFile(before.music_url);
   res.status(201).json(s);
 });
