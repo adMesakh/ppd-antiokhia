@@ -8,12 +8,12 @@
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@500;600;700&display=swap">
 <style>
-/* Layar monitor panitia: dibuat untuk TV 16:9, terbaca dari jauh. Ukuran mengikuti lebar layar (vw). */
+/* Layar monitor panitia untuk TV 16:9. Ukuran mengikuti lebar layar supaya terbaca dari jauh. */
 :root{
   --bg:#0E0D0C; --panel:#191715; --panel2:#221F1C; --line:#2E2A26; --ink:#F7F3EE; --muted:#A39A8E; --dim:#6F675D;
-  --orange:#FF8A3D; --orange-2:#FFB37E; --green:#58C98A; --amber:#F2C14E;
+  --orange:#FF8A3D; --green:#58C98A;
   --num:"Big Shoulders Display", "Arial Narrow", sans-serif; --body:"Instrument Sans", system-ui, sans-serif;
   --g:clamp(10px,1.1vw,22px);
 }
@@ -22,76 +22,63 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--bo
 body{overflow:hidden}
 [hidden]{display:none!important}
 .wb{height:100vh;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--g);padding:var(--g) calc(var(--g)*1.3)}
+h2{font:800 clamp(16px,1.5vw,32px)/1 var(--num);text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin-bottom:1vw}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:1.4vw;padding:1.2vw 1.5vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+
 /* header */
 .top{display:flex;align-items:center;gap:1.2vw}
 .top img{width:3.2vw;min-width:34px;height:auto;border-radius:50%}
-.top h1{font:900 clamp(20px,2.3vw,48px)/1 var(--num);text-transform:uppercase;letter-spacing:.01em}
+.top h1{font:900 clamp(20px,2.3vw,48px)/1 var(--num);text-transform:uppercase}
 .top .sub{color:var(--muted);font-size:clamp(11px,.95vw,19px);font-weight:600;margin-top:.25vw}
-.live{display:inline-flex;align-items:center;gap:.5vw;margin-left:.6vw;padding:.3vw .8vw;border-radius:99px;background:rgba(88,201,138,.14);color:var(--green);font:700 clamp(10px,.8vw,16px) var(--body);letter-spacing:.12em}
-.live i{width:.6vw;height:.6vw;min-width:8px;min-height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
-.live.off{background:rgba(242,193,78,.14);color:var(--amber)}.live.off i{background:var(--amber);animation:none}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(88,201,138,.6)}70%{box-shadow:0 0 0 .8vw rgba(88,201,138,0)}100%{box-shadow:0 0 0 0 rgba(88,201,138,0)}}
-.top .right{margin-left:auto;display:flex;align-items:center;gap:1.6vw;text-align:right}
-.count b{display:block;font:900 clamp(18px,2vw,42px)/1 var(--num);color:var(--orange)}
-.count span,.clock span{color:var(--muted);font-size:clamp(10px,.8vw,16px);font-weight:600}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:1.4vw;text-align:right}
 .clock b{display:block;font:800 clamp(20px,2.4vw,50px)/1 var(--num);font-variant-numeric:tabular-nums}
+.clock span{color:var(--muted);font-size:clamp(10px,.8vw,16px);font-weight:600}
 .fs{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:10px;padding:.5vw .9vw;font:600 clamp(10px,.8vw,15px) var(--body);cursor:pointer}
-.fs:hover{color:var(--ink)}
-/* KPI */
+
+/* angka utama */
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--g)}
-.kpi{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:1.4vw;padding:1.3vw 1.6vw 1.2vw}
-.kpi:first-child{background:linear-gradient(135deg,#2A1A10 0%,#1B1512 60%);border-color:#4A2D1A}
-.kpi .lbl{font-weight:700;color:var(--muted);font-size:clamp(12px,1.05vw,22px);letter-spacing:.02em}
-.kpi .val{font:900 clamp(48px,7.2vw,150px)/.95 var(--num);font-variant-numeric:tabular-nums;margin:.3vw 0 .4vw;display:flex;align-items:baseline;gap:.6vw}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:1.4vw;padding:1.2vw 1.6vw}
+.kpi .lbl{font-weight:700;color:var(--muted);font-size:clamp(12px,1.1vw,23px)}
+.kpi .val{font:900 clamp(48px,7vw,146px)/1 var(--num);font-variant-numeric:tabular-nums;margin-top:.3vw}
 .kpi:first-child .val{color:var(--orange)}
-.kpi .val small{font-size:.38em;color:var(--dim);font-weight:800}
-.kpi .foot{display:flex;flex-wrap:wrap;gap:.4vw 1.2vw;color:var(--muted);font-size:clamp(11px,.95vw,20px);font-weight:600}
-.kpi .foot b{color:var(--ink)}
-.kpi .delta{position:absolute;top:1.2vw;right:1.4vw;font:700 clamp(10px,.85vw,18px) var(--body);color:var(--green);background:rgba(88,201,138,.12);padding:.25vw .7vw;border-radius:99px}
-.spark{position:absolute;right:1.2vw;bottom:1vw;width:38%;height:38%;opacity:.9}
 .bump{animation:bump 1.2s ease}
-@keyframes bump{0%{transform:scale(1)}20%{transform:scale(1.06);color:#fff}100%{transform:scale(1)}}
+@keyframes bump{20%{transform:scale(1.05)}}
+
 /* tengah */
-.mid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:var(--g);min-height:0}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:1.4vw;padding:1.2vw 1.5vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.card h2{display:flex;align-items:baseline;gap:.8vw;font:800 clamp(16px,1.55vw,32px)/1 var(--num);text-transform:uppercase;letter-spacing:.03em;margin-bottom:1vw}
-.card h2 span{font:600 clamp(10px,.8vw,16px) var(--body);color:var(--dim);text-transform:none;letter-spacing:0}
-.rank{list-style:none;padding:0;display:grid;gap:.75vw;flex:1;align-content:start;min-height:0;overflow:hidden}
-.rank li{display:grid;grid-template-columns:2.6vw minmax(0,1fr) auto;gap:.2vw 1vw;align-items:center}
+.mid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:var(--g);min-height:0}
+.rank{list-style:none;padding:0;display:grid;gap:.8vw;flex:1;align-content:start;min-height:0;overflow:hidden}
+.rank li{display:grid;grid-template-columns:2.6vw minmax(0,1fr) auto;gap:.3vw 1vw;align-items:center}
 .rank .no{grid-row:span 2;font:900 clamp(18px,1.9vw,40px)/1 var(--num);color:var(--dim);text-align:center}
 .rank li:first-child .no{color:var(--orange)}
-.rank .nm{font-weight:700;font-size:clamp(13px,1.2vw,25px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rank .nm em{font-style:normal;color:var(--dim);font-weight:600;font-size:.8em;margin-left:.5vw}
-.rank .n{font:800 clamp(16px,1.6vw,34px)/1 var(--num);text-align:right;font-variant-numeric:tabular-nums}
-.rank .n small{display:block;font:600 clamp(9px,.7vw,14px) var(--body);color:var(--dim)}
-.rank .bar{grid-column:2/4;height:.55vw;min-height:6px;border-radius:99px;background:var(--panel2);overflow:hidden;position:relative}
-.rank .bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,#B85A1E,var(--orange));transition:width 1s ease}
-.rank .bar i.paid{background:var(--orange-2);opacity:.35}
-.feed{list-style:none;padding:0;display:grid;gap:.55vw;flex:1;align-content:start;min-height:0;overflow:hidden}
-.feed li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.1vw 1vw;padding:.75vw 1vw;border-radius:.9vw;background:var(--panel2);border:1px solid transparent}
+.rank .nm{font-weight:700;font-size:clamp(13px,1.25vw,26px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank .n{font:800 clamp(16px,1.7vw,36px)/1 var(--num);text-align:right;font-variant-numeric:tabular-nums}
+.rank .bar{grid-column:2/4;height:.55vw;min-height:6px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.rank .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#B85A1E,var(--orange));transition:width 1s ease}
+
+/* acara berlangsung */
+.now{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.8vw;min-height:0}
+.now .tag{align-self:flex-start;display:inline-flex;align-items:center;gap:.5vw;padding:.3vw .9vw;border-radius:99px;font:700 clamp(11px,.9vw,18px) var(--body);background:rgba(88,201,138,.14);color:var(--green)}
+.now .tag i{width:.6vw;height:.6vw;min-width:8px;min-height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+.now .tag.wait{background:var(--panel2);color:var(--muted)}.now .tag.wait i{animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(88,201,138,.6)}70%{box-shadow:0 0 0 .8vw rgba(88,201,138,0)}100%{box-shadow:0 0 0 0 rgba(88,201,138,0)}}
+.now .title{font:900 clamp(30px,3.8vw,80px)/1 var(--num);text-transform:uppercase}
+.now .meta{color:var(--muted);font-weight:600;font-size:clamp(12px,1.15vw,24px)}
+.now .present{display:flex;align-items:baseline;gap:.8vw;margin-top:.4vw}
+.now .present b{font:900 clamp(36px,4.6vw,96px)/1 var(--num);color:var(--orange);font-variant-numeric:tabular-nums}
+.now .present span{color:var(--muted);font-weight:600;font-size:clamp(12px,1.15vw,24px)}
+.now .next{margin-top:auto;padding-top:.9vw;border-top:1px solid var(--line);color:var(--muted);font-weight:600;font-size:clamp(11px,1vw,21px)}
+.now .next b{color:var(--ink)}
+
+/* pendaftaran terbaru */
+.recent{padding-bottom:1vw}
+.feed{list-style:none;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:.8vw;overflow:hidden}
+.feed li{padding:.8vw 1vw;border-radius:.9vw;background:var(--panel2);border:1px solid transparent;min-width:0}
 .feed li.new{border-color:var(--orange);animation:flash 2.4s ease}
-@keyframes flash{0%,30%{background:rgba(255,138,61,.28)}100%{background:var(--panel2)}}
-.feed .c{font-weight:700;font-size:clamp(13px,1.15vw,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.feed .m{grid-column:1;color:var(--muted);font-size:clamp(10px,.85vw,17px);font-weight:600}
-.feed .t{grid-row:span 2;align-self:center;text-align:right;color:var(--muted);font-size:clamp(10px,.85vw,17px);font-weight:600;white-space:nowrap}
-.pill{display:inline-block;padding:.1vw .6vw;border-radius:99px;font-weight:700;font-size:.85em;margin-left:.4vw}
-.pill.lunas{background:rgba(88,201,138,.15);color:var(--green)}.pill.menunggu{background:rgba(242,193,78,.14);color:var(--amber)}
-.empty{color:var(--dim);font-size:clamp(12px,1vw,20px);padding:1vw 0}
-/* bawah */
-.bottom{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:var(--g)}
-.mini{background:var(--panel);border:1px solid var(--line);border-radius:1.2vw;padding:.9vw 1.2vw;display:grid;gap:.35vw;align-content:start}
-.mini .lbl{color:var(--muted);font-weight:700;font-size:clamp(10px,.85vw,18px)}
-.mini .big{font:900 clamp(22px,2.4vw,52px)/1 var(--num);font-variant-numeric:tabular-nums}
-.mini .big small{font-size:.5em;color:var(--dim)}
-.mini .s{color:var(--muted);font-size:clamp(10px,.8vw,16px);font-weight:600}
-.meter{height:.6vw;min-height:7px;border-radius:99px;background:var(--panel2);overflow:hidden;display:flex}
-.meter i{display:block;height:100%}
-.chart{width:100%;height:clamp(60px,6.2vw,130px)}
-.chart text{font-family:var(--body)}
-.legend{display:flex;gap:1.2vw;color:var(--muted);font-size:clamp(10px,.75vw,15px);font-weight:600}
-.legend i{display:inline-block;width:.7vw;height:.7vw;min-width:8px;min-height:8px;border-radius:3px;margin-right:.35vw;vertical-align:middle}
-.status{position:fixed;left:calc(var(--g)*1.3);bottom:.4vw;color:var(--dim);font-size:clamp(9px,.65vw,13px)}
-.status.err{color:var(--amber)}
+@keyframes flash{0%,30%{background:rgba(255,138,61,.28)}}
+.feed .c{display:block;font-weight:700;font-size:clamp(12px,1.05vw,22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed .m{display:block;color:var(--muted);font-size:clamp(10px,.85vw,17px);font-weight:600;margin-top:.2vw}
+.empty{color:var(--dim);font-size:clamp(12px,1vw,20px)}
+.offline{position:fixed;right:calc(var(--g)*1.3);bottom:.4vw;color:#F2C14E;font-size:clamp(10px,.75vw,15px);font-weight:600}
 .cursorless{cursor:none}
 </style>
 </head>
@@ -99,109 +86,88 @@ body{overflow:hidden}
 <div class="wb">
   <header class="top">
     <img src="/assets/logo.png" alt="">
-    <div><h1 id="evName">PPD Antiokhia</h1><div class="sub" id="evSub">Monitor pendaftaran</div></div>
-    <span class="live" id="live"><i></i>LIVE</span>
+    <div><h1 id="evName">PPD Antiokhia</h1><div class="sub" id="evSub"></div></div>
     <div class="right">
-      <div class="count" id="countBox"><b id="countdown">—</b><span id="countLbl">menuju hari H</span></div>
       <div class="clock"><b id="clock">--:--</b><span id="date"></span></div>
       <button class="fs" id="fsBtn" type="button">Layar penuh</button>
     </div>
   </header>
 
   <section class="kpis">
-    <div class="kpi"><div class="lbl">Peserta terdaftar</div><div class="val" id="kPeserta">0</div>
-      <div class="foot"><span><b id="kLunas">0</b> lunas</span><span><b id="kMenunggu">0</b> menunggu bayar</span></div>
-      <span class="delta" id="kPesertaToday" hidden></span><svg class="spark" id="sparkReg" preserveAspectRatio="none"></svg></div>
-    <div class="kpi"><div class="lbl">Gereja terdaftar</div><div class="val"><span id="kGereja">0</span><small id="kGerejaOf">/ 0</small></div>
-      <div class="foot"><span><b id="kGerejaLunas">0</b> sudah lunas</span><span><b id="kRombongan">0</b> pendaftaran</span></div></div>
-    <div class="kpi"><div class="lbl">Pengunjung website</div><div class="val" id="kVisit">0</div>
-      <div class="foot"><span><b id="kVisitToday">0</b> hari ini</span><span><b id="kViews">0</b> kali dibuka</span></div>
-      <svg class="spark" id="sparkVis" preserveAspectRatio="none"></svg></div>
+    <div class="kpi"><div class="lbl">Peserta</div><div class="val" id="kPeserta">0</div></div>
+    <div class="kpi"><div class="lbl">Gereja</div><div class="val" id="kGereja">0</div></div>
+    <div class="kpi"><div class="lbl">Pengunjung website</div><div class="val" id="kVisit">0</div></div>
   </section>
 
   <section class="mid">
-    <div class="card"><h2>Gereja dengan peserta terbanyak <span>sementara · semua pendaftaran aktif</span></h2><ol class="rank" id="rank"></ol></div>
-    <div class="card"><h2>Pendaftaran terbaru <span id="recentSub"></span></h2><ul class="feed" id="feed"></ul></div>
+    <div class="card"><h2>Peserta terbanyak</h2><ol class="rank" id="rank"></ol></div>
+    <div class="card"><h2>Acara berlangsung</h2><div class="now" id="now"></div></div>
   </section>
 
-  <section class="bottom">
-    <div class="mini"><div class="lbl" style="display:flex;justify-content:space-between;gap:1vw;align-items:center">14 hari terakhir
-      <span class="legend"><span><i style="background:var(--orange)"></i>peserta daftar</span><span><i style="background:#6F675D"></i>pengunjung</span></span></div>
-      <svg class="chart" id="chart"></svg></div>
-    <div class="mini"><div class="lbl">Pembayaran tunai</div><div class="big" id="mMoney">Rp0</div>
-      <div class="meter"><i id="mMoneyBar" style="background:var(--green)"></i></div><div class="s" id="mMoneySub">—</div></div>
-    <div class="mini"><div class="lbl">Komposisi peserta</div><div class="big"><span id="mPastor">0</span> <small>gembala sidang</small></div>
-      <div class="meter"><i id="mMale" style="background:#5B8DEF"></i><i id="mFemale" style="background:#E77FB3"></i></div><div class="s" id="mGender">—</div></div>
-    <div class="mini" id="attBox"><div class="lbl">Kehadiran (scan)</div><div class="big"><span id="mHadir">0</span><small id="mHadirOf"> / 0</small></div>
-      <div class="meter"><i id="mHadirBar" style="background:var(--orange)"></i></div><div class="s" id="mHadirSub">Belum ada scan</div></div>
-  </section>
+  <section class="card recent"><h2>Pendaftaran terbaru</h2><ul class="feed" id="feed"></ul></section>
 </div>
-<div class="status" id="status">Memuat…</div>
+<div class="offline" id="offline" hidden>Offline · menampilkan data terakhir</div>
 
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmt = (n) => Number(n || 0).toLocaleString("id-ID");
-  const rupiah = (n) => "Rp" + fmt(Math.round(n));
   const pad = (n) => String(n).padStart(2, "0");
   const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"], BLN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-  const wib = (t) => new Date(t + 7 * 36e5); // tampil dalam WIB apa pun zona waktu TV
+  const wib = (t) => new Date(t + 7 * 36e5); // selalu tampil dalam WIB
+  const hm = (iso) => { const d = wib(new Date(iso).getTime()); return `${pad(d.getUTCHours())}.${pad(d.getUTCMinutes())}`; };
+  const tgl = (iso) => { const d = wib(new Date(iso).getTime()); return `${d.getUTCDate()} ${BLN[d.getUTCMonth()]}`; };
   let D = null, lastIds = null, prev = {};
 
-  // ---------- jam & hitung mundur ----------
   function tick() {
     const n = wib(Date.now());
     $("#clock").textContent = `${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}`;
-    $("#date").textContent = `${HARI[n.getUTCDay()]}, ${n.getUTCDate()} ${BLN[n.getUTCMonth()]} ${n.getUTCFullYear()} · WIB`;
-    if (!D) return;
-    const st = new Date(D.event.start_at).getTime(), en = new Date(D.event.end_at).getTime(), t = Date.now();
-    if (t < st) {
-      const days = Math.ceil((st - t) / 864e5);
-      $("#countdown").textContent = days > 1 ? `H-${days}` : (() => { const s = Math.floor((st - t) / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`; })();
-      $("#countLbl").textContent = days > 1 ? "menuju hari H" : "menuju acara dimulai";
-    } else if (t <= en) {
-      $("#countdown").textContent = `Hari ke-${Math.floor((wib(t).setUTCHours(0, 0, 0, 0) - wib(st).setUTCHours(0, 0, 0, 0)) / 864e5) + 1}`;
-      $("#countLbl").textContent = "acara sedang berlangsung";
-    } else { $("#countdown").textContent = "Selesai"; $("#countLbl").textContent = "terima kasih!"; }
+    $("#date").textContent = `${HARI[n.getUTCDay()]}, ${n.getUTCDate()} ${BLN[n.getUTCMonth()]} ${n.getUTCFullYear()}`;
   }
   setInterval(tick, 1000); tick();
 
-  // ---------- angka naik halus ----------
-  function setNum(el, v, f = fmt) {
+  function setNum(el, v) {
     const from = prev[el.id] ?? v; prev[el.id] = v;
-    if (from === v) { el.textContent = f(v); return; }
-    if (from < v) el.classList.remove("bump"), void el.offsetWidth, el.classList.add("bump");
-    const t0 = performance.now(), dur = 900;
-    const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = f(Math.round(from + (v - from) * e)); if (k < 1) requestAnimationFrame(step); };
+    if (from === v) { el.textContent = fmt(v); return; }
+    if (from < v) { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+    const t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (v - from) * e)); if (k < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }
   const ago = (iso) => {
     const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-    if (s < 60) return "baru saja"; if (s < 3600) return Math.floor(s / 60) + " menit lalu"; if (s < 86400) return Math.floor(s / 3600) + " jam lalu";
-    const d = wib(new Date(iso).getTime()); return Math.floor(s / 86400) < 7 ? Math.floor(s / 86400) + " hari lalu" : `${d.getUTCDate()} ${BLN[d.getUTCMonth()]}`;
+    if (s < 60) return "Baru saja"; if (s < 3600) return Math.floor(s / 60) + " menit lalu"; if (s < 86400) return Math.floor(s / 3600) + " jam lalu";
+    return Math.floor(s / 86400) < 7 ? Math.floor(s / 86400) + " hari lalu" : tgl(iso);
   };
-  function spark(svg, vals, color) {
-    const w = 100, h = 40, max = Math.max(1, ...vals);
-    const pts = vals.map((v, i) => [(i / (vals.length - 1)) * w, h - (v / max) * (h - 4) - 2]);
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    svg.innerHTML = `<path d="M${pts.map((p) => p.join(",")).join("L")}L${w},${h}L0,${h}Z" fill="${color}" opacity=".14"/><path d="M${pts.map((p) => p.join(",")).join("L")}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
+
+  // ---------- acara berlangsung (mengikuti jadwal sesi) ----------
+  function renderNow() {
+    if (!D) return;
+    const t = Date.now(), list = D.sessions;
+    const cur = list.find((s) => new Date(s.start).getTime() <= t && t < new Date(s.end).getTime());
+    const next = list.find((s) => new Date(s.start).getTime() > t);
+    const when = (s) => `Hari ${s.day} · ${hm(s.start)}–${hm(s.end)}${s.location ? " · " + esc(s.location) : ""}`;
+    const nextLine = next ? `<div class="next">Berikutnya: <b>${esc(next.title)}</b> · ${new Date(next.start).toDateString() === new Date(t).toDateString() ? hm(next.start) : tgl(next.start) + ", " + hm(next.start)}</div>` : "";
+    let html;
+    if (cur) {
+      html = `<span class="tag"><i></i>Sedang berlangsung</span>
+        <div class="title">${esc(cur.title)}</div>
+        <div class="meta">${when(cur)}${cur.speaker ? "<br>" + esc(cur.speaker) : ""}</div>
+        <div class="present"><b>${fmt(cur.present)}</b><span>hadir</span></div>${nextLine}`;
+    } else if (!list.length) {
+      html = `<span class="tag wait"><i></i>Belum ada jadwal</span><div class="meta">Tambahkan sesi di menu Jadwal &amp; kehadiran.</div>`;
+    } else if (next) {
+      const first = next === list[0];
+      html = `<span class="tag wait"><i></i>${first ? "Belum dimulai" : "Jeda"}</span>
+        <div class="title">${esc(next.title)}</div>
+        <div class="meta">Mulai ${tgl(next.start)}, ${hm(next.start)}${next.location ? " · " + esc(next.location) : ""}</div>`;
+    } else {
+      html = `<span class="tag wait"><i></i>Selesai</span><div class="title">Semua acara selesai</div><div class="meta">Terima kasih!</div>`;
+    }
+    if ($("#now").innerHTML !== html) $("#now").innerHTML = html;
   }
-  function chart(daily) {
-    const svg = $("#chart"), w = Math.max(200, svg.clientWidth), h = Math.max(60, svg.clientHeight), n = daily.length, bw = w / n;
-    const fs = Math.max(10, Math.round(w / 52));
-    const maxP = Math.max(1, ...daily.map((d) => d.participants)), maxV = Math.max(1, ...daily.map((d) => d.visitors));
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    const base = h - fs - 6, top = fs + 6;
-    const vis = daily.map((d, i) => [i * bw + bw / 2, base - (d.visitors / maxV) * (base - top)]);
-    svg.innerHTML = daily.map((d, i) => {
-      const bh = (d.participants / maxP) * (base - top), x = i * bw + bw * 0.18, today = i === n - 1;
-      const lab = d.day.slice(8) + (d.day.slice(8) === "01" || i === 0 ? "/" + d.day.slice(5, 7) : "");
-      return `<rect x="${x}" y="${base - bh}" width="${bw * 0.64}" height="${Math.max(bh, d.participants ? 2 : 0)}" rx="3" fill="${today ? "#FFB37E" : "#FF8A3D"}"/>`
-        + (d.participants ? `<text x="${i * bw + bw / 2}" y="${base - bh - 4}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#F7F3EE">${d.participants}</text>` : "")
-        + `<text x="${i * bw + bw / 2}" y="${h - 3}" text-anchor="middle" font-size="${fs - 1}" fill="${today ? "#F7F3EE" : "#6F675D"}">${today ? "Hari ini" : lab}</text>`;
-    }).join("") + `<path d="M${vis.map((p) => p.join(",")).join("L")}" fill="none" stroke="#6F675D" stroke-width="2" stroke-dasharray="4 4"/>`;
-  }
+  setInterval(renderNow, 15000);
 
   // ---------- data ----------
   async function load() {
@@ -209,70 +175,39 @@ body{overflow:hidden}
       const r = await fetch("/api/admin/wallboard", { cache: "no-store", credentials: "same-origin" });
       if (r.status === 401 || r.status === 403) { location.replace("/admin/login.html?next=" + encodeURIComponent("/admin/wallboard.html")); return; }
       if (!r.ok) throw new Error("HTTP " + r.status);
-      D = await r.json(); render(); tick();
-      $("#status").className = "status"; $("#status").textContent = "Diperbarui " + new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " · otomatis tiap 20 detik";
-      $("#live").className = "live"; $("#live").lastChild.textContent = "LIVE";
-    } catch (e) {
-      $("#status").className = "status err"; $("#status").textContent = "Koneksi terputus, mencoba lagi… (data terakhir tetap tampil)";
-      $("#live").className = "live off"; $("#live").lastChild.textContent = "OFFLINE";
-    }
+      D = await r.json(); render(); $("#offline").hidden = true;
+    } catch (_) { $("#offline").hidden = false; }
   }
   function render() {
-    const P = D.participants, C = D.churches, V = D.visitors;
     $("#evName").textContent = D.event.name || "PPD Antiokhia";
-    $("#evSub").textContent = [D.event.dates_label, D.event.location, D.event.registration_open ? "Pendaftaran dibuka" : "Pendaftaran ditutup"].filter(Boolean).join(" · ");
-    document.title = "Wallboard · " + (D.event.name || "PPD Antiokhia");
-    setNum($("#kPeserta"), P.total); setNum($("#kLunas"), P.paid); setNum($("#kMenunggu"), P.waiting);
-    setNum($("#kGereja"), C.registered); $("#kGerejaOf").textContent = "/ " + fmt(C.listed); setNum($("#kGerejaLunas"), C.paid); setNum($("#kRombongan"), C.registrations);
-    setNum($("#kVisit"), V.unique_all); setNum($("#kVisitToday"), V.unique_today); setNum($("#kViews"), V.views_all);
-    const todayReg = D.daily[D.daily.length - 1].participants;
-    $("#kPesertaToday").hidden = !todayReg; $("#kPesertaToday").textContent = `+${fmt(todayReg)} hari ini`;
-    spark($("#sparkReg"), D.daily.map((d) => d.participants), "#FF8A3D"); spark($("#sparkVis"), D.daily.map((d) => d.visitors), "#A39A8E");
+    $("#evSub").textContent = [D.event.dates_label, D.event.location].filter(Boolean).join(" · ");
+    setNum($("#kPeserta"), D.participants); setNum($("#kGereja"), D.churches); setNum($("#kVisit"), D.visitors);
 
-    const top = D.top_churches, max = Math.max(1, ...top.map((t) => t.n));
-    $("#rank").innerHTML = top.length ? top.map((t, i) => `<li><span class="no">${i + 1}</span><span class="nm">${esc(t.church)}${t.city ? `<em>${esc(t.city)}</em>` : ""}</span>
-      <span class="n">${fmt(t.n)}<small>${fmt(t.paid)} lunas</small></span><span class="bar"><i style="width:${(t.n / max) * 100}%"></i><i class="paid" style="width:${(t.paid / max) * 100}%"></i></span></li>`).join("")
-      : `<li class="empty">Belum ada pendaftaran.</li>`;
+    const max = Math.max(1, ...D.top_churches.map((t) => t.n));
+    $("#rank").innerHTML = D.top_churches.length ? D.top_churches.map((t, i) => `<li><span class="no">${i + 1}</span><span class="nm">${esc(t.church)}</span>
+      <span class="n">${fmt(t.n)}</span><span class="bar"><i style="width:${(t.n / max) * 100}%"></i></span></li>`).join("") : `<li class="empty">Belum ada pendaftaran</li>`;
 
-    const ids = D.recent.map((r) => r.id);
     $("#feed").innerHTML = D.recent.length ? D.recent.map((r) => `<li${lastIds && !lastIds.includes(r.id) ? ' class="new"' : ""}><span class="c">${esc(r.church)}</span>
-      <span class="t">${ago(r.created_at)}</span><span class="m">${r.n > 1 ? `Rombongan · ${fmt(r.n)} peserta` : "Daftar sendiri · 1 peserta"}<span class="pill ${r.status}">${r.status === "lunas" ? "Lunas" : "Menunggu"}</span></span></li>`).join("")
-      : `<li class="empty">Belum ada pendaftaran.</li>`;
-    lastIds = ids;
-    $("#recentSub").textContent = D.recent.length ? "nama peserta tidak ditampilkan" : "";
-
-    chart(D.daily);
-    fitLists();
-    const M = D.money, tot = M.received + M.outstanding;
-    $("#mMoney").textContent = rupiah(M.received);
-    $("#mMoneyBar").style.width = (tot ? (M.received / tot) * 100 : 0) + "%";
-    $("#mMoneySub").textContent = tot ? `${Math.round((M.received / tot) * 100)}% terkumpul · ${rupiah(M.outstanding)} menunggu` : "Belum ada tagihan";
-    setNum($("#mPastor"), P.pastors);
-    const g = P.male + P.female;
-    $("#mMale").style.width = (g ? (P.male / g) * 100 : 50) + "%"; $("#mFemale").style.width = (g ? (P.female / g) * 100 : 50) + "%";
-    $("#mGender").textContent = g ? `${fmt(P.male)} laki-laki · ${fmt(P.female)} perempuan` : "—";
-    const A = D.attendance;
-    setNum($("#mHadir"), A.people); $("#mHadirOf").textContent = " / " + fmt(P.paid);
-    $("#mHadirBar").style.width = (P.paid ? Math.min(100, (A.people / P.paid) * 100) : 0) + "%";
-    $("#mHadirSub").textContent = A.scans ? `${fmt(A.checked_in)} sudah check-in · scan terakhir ${ago(A.last)}` : "Belum ada scan. Terisi saat acara berlangsung.";
+      <span class="m">${fmt(r.n)} peserta · <span data-ago="${esc(r.created_at)}">${ago(r.created_at)}</span></span></li>`).join("") : `<li class="empty">Belum ada pendaftaran</li>`;
+    lastIds = D.recent.map((r) => r.id);
+    renderNow(); fit();
   }
-  // Tampilkan hanya baris yang muat di layar (TV beda-beda ukurannya)
-  function fitLists() {
-    for (const id of ["#rank", "#feed"]) {
-      const ul = $(id); [...ul.children].forEach((li) => (li.hidden = false));
-      const items = [...ul.children];
-      for (let i = items.length - 1; i > 0 && ul.scrollHeight > ul.clientHeight + 1; i--) items[i].hidden = true;
-    }
+  // Tampilkan hanya yang muat di layar
+  function fit() {
+    const rank = $("#rank"); [...rank.children].forEach((li) => (li.hidden = false));
+    for (let i = rank.children.length - 1; i > 0 && rank.scrollHeight > rank.clientHeight + 1; i--) rank.children[i].hidden = true;
+    const feed = $("#feed"), items = [...feed.children]; items.forEach((li) => (li.hidden = false));
+    const per = Math.max(2, Math.floor(feed.clientWidth / Math.max(220, innerWidth / 6.5)));
+    items.forEach((li, i) => (li.hidden = i >= per));
   }
-  window.addEventListener("resize", () => { if (D) { chart(D.daily); fitLists(); } });
+  window.addEventListener("resize", () => D && fit());
   load(); setInterval(load, 20000);
-  setInterval(() => { if (D) document.querySelectorAll("#feed .t").forEach((el, i) => { if (D.recent[i]) el.textContent = ago(D.recent[i].created_at); }); }, 30000);
+  setInterval(() => document.querySelectorAll("[data-ago]").forEach((el) => (el.textContent = ago(el.dataset.ago))), 30000);
 
   // ---------- layar penuh, layar tetap menyala, kursor tersembunyi ----------
   $("#fsBtn").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
   document.addEventListener("fullscreenchange", () => { $("#fsBtn").hidden = !!document.fullscreenElement; });
-  let lock = null;
-  const keepAwake = async () => { try { if ("wakeLock" in navigator && !document.hidden) lock = await navigator.wakeLock.request("screen"); } catch (_) {} };
+  const keepAwake = async () => { try { if ("wakeLock" in navigator && !document.hidden) await navigator.wakeLock.request("screen"); } catch (_) {} };
   keepAwake(); document.addEventListener("visibilitychange", keepAwake);
   let idle; document.addEventListener("mousemove", () => { document.body.classList.remove("cursorless"); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add("cursorless"), 3000); });
 })();

@@ -259,47 +259,42 @@ A.get("/summary", async (req, res) => {
   res.json({ registrations: reg, participants: ppl, money, churches, attendance: att, recent });
 });
 
-// Wallboard (layar TV/monitor panitia): ringkasan yang aman ditampilkan di depan umum (tanpa nama/nomor peserta)
+// Wallboard (layar TV/monitor panitia): hanya angka dan nama gereja, tanpa nama/nomor peserta
+// Waktu mulai/selesai tiap sesi (WIB) dari tanggal mulai acara + "hari ke-" + jam sesi
+function sessionTimes(startAt, sessions) {
+  const base = new Date(new Date(startAt).getTime() + 7 * 36e5); // tanggal hari pertama dalam WIB
+  if (Number.isNaN(base.getTime())) return [];
+  const at = (day, hhmm) => { const [h, m] = hhmm.split(":").map(Number); return Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + day - 1, h, m) - 7 * 36e5; };
+  const timed = sessions.filter((x) => /^\d{2}:\d{2}$/.test(x.starts_at)).map((x) => ({ ...x, start: at(x.day, x.starts_at) })).sort((a, b) => a.start - b.start);
+  return timed.map((x, i) => {
+    const next = timed[i + 1];
+    let end = /^\d{2}:\d{2}$/.test(x.ends_at) ? at(x.day, x.ends_at) : 0;
+    if (!end || end <= x.start) end = next && next.day === x.day ? next.start : x.start + 2 * 36e5;
+    return { ...x, start: new Date(x.start).toISOString(), end: new Date(end).toISOString() };
+  });
+}
 A.get("/wallboard", async (req, res) => {
-  const today = wibDay();
-  const [s, ppl, churchTotals, top, recentRegs, regDays, money, vis, visDays, att, checkin] = await Promise.all([
+  const [s, ppl, churchCount, vis, top, recent, sessions] = await Promise.all([
     getSettings(),
-    one(`SELECT COUNT(*) FILTER (WHERE r.status != 'batal')::int AS total, COUNT(*) FILTER (WHERE r.status = 'lunas')::int AS paid,
-           COUNT(*) FILTER (WHERE r.status = 'menunggu')::int AS waiting, COUNT(*) FILTER (WHERE r.status != 'batal' AND p.role = 'gembala')::int AS pastors,
-           COUNT(*) FILTER (WHERE r.status != 'batal' AND p.gender = 'L')::int AS male, COUNT(*) FILTER (WHERE r.status != 'batal' AND p.gender = 'P')::int AS female
-         FROM participants p JOIN registrations r ON r.id = p.registration_id`),
-    one(`SELECT (SELECT COUNT(*)::int FROM churches) AS listed,
-           (SELECT COUNT(DISTINCT church_id)::int FROM registrations WHERE status != 'batal') AS registered,
-           (SELECT COUNT(DISTINCT church_id)::int FROM registrations WHERE status = 'lunas') AS paid,
-           (SELECT COUNT(*)::int FROM registrations WHERE status != 'batal') AS registrations`),
-    many(`SELECT c.name AS church, c.city, COUNT(p.id)::int AS n, COUNT(p.id) FILTER (WHERE r.status = 'lunas')::int AS paid
+    one(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE r.status = 'lunas')::int AS paid
+         FROM participants p JOIN registrations r ON r.id = p.registration_id WHERE r.status != 'batal'`),
+    one("SELECT COUNT(DISTINCT church_id)::int AS n FROM registrations WHERE status != 'batal'"),
+    one("SELECT COUNT(DISTINCT vid)::int AS n FROM site_visits"),
+    many(`SELECT c.name AS church, c.city, COUNT(p.id)::int AS n
           FROM churches c JOIN registrations r ON r.church_id = c.id AND r.status != 'batal' JOIN participants p ON p.registration_id = r.id
-          GROUP BY c.id, c.name, c.city ORDER BY n DESC, paid DESC, lower(c.name) LIMIT 8`),
-    many(`SELECT r.id, r.status, r.created_at, c.name AS church, c.city, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
-          FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 8`),
-    many(`SELECT r.created_at, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n FROM registrations r WHERE r.status != 'batal' AND r.created_at >= $1`,
-      [new Date(Date.now() - 15 * 864e5).toISOString()]),
-    one(`SELECT COALESCE(SUM(CASE WHEN r.status='lunas' THEN r.fee_per_person ELSE 0 END),0)::float8 AS received,
-           COALESCE(SUM(CASE WHEN r.status='menunggu' THEN r.fee_per_person ELSE 0 END),0)::float8 AS outstanding
-         FROM participants p JOIN registrations r ON r.id = p.registration_id`),
-    one(`SELECT COUNT(DISTINCT vid)::int AS unique_all, COALESCE(SUM(views),0)::int AS views_all,
-           COUNT(DISTINCT vid) FILTER (WHERE day = $1)::int AS unique_today, COALESCE(SUM(views) FILTER (WHERE day = $1),0)::int AS views_today
-         FROM site_visits`, [today]),
-    many("SELECT day, COUNT(*)::int AS n FROM site_visits WHERE day >= $1 GROUP BY day", [wibDay(Date.now() - 13 * 864e5)]),
-    one(`SELECT COUNT(*)::int AS scans, COUNT(DISTINCT participant_id)::int AS people, MAX(scanned_at) AS last FROM attendance`),
-    one(`SELECT COUNT(DISTINCT a.participant_id)::int AS n FROM attendance a JOIN sessions s ON s.id = a.session_id AND s.kind = 'checkin'`),
+          GROUP BY c.id, c.name, c.city ORDER BY n DESC, lower(c.name) LIMIT 8`),
+    many(`SELECT r.id, r.created_at, c.name AS church, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
+          FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 10`),
+    many(`SELECT s.id, s.title, s.kind, s.day, s.starts_at, s.ends_at, s.location, s.speaker,
+            (SELECT COUNT(DISTINCT a.participant_id)::int FROM attendance a WHERE a.session_id = s.id) AS present
+          FROM sessions s ORDER BY s.day, s.starts_at, s.id`),
   ]);
-  const days = [];
-  for (let i = 13; i >= 0; i--) days.push(wibDay(Date.now() - i * 864e5));
-  const regByDay = Object.fromEntries(days.map((d) => [d, 0]));
-  for (const r of regDays) { const d = wibDay(new Date(r.created_at).getTime()); if (d in regByDay) regByDay[d] += r.n; }
-  const visByDay = Object.fromEntries(visDays.map((r) => [r.day, r.n]));
   res.set("Cache-Control", "no-store");
   res.json({
-    now: now(), event: { name: s.event_name, start_at: s.start_at, end_at: s.end_at, dates_label: s.dates_label, location: s.location, registration_open: s.registration_open },
-    participants: ppl, churches: churchTotals, money, visitors: vis, attendance: { ...att, checked_in: checkin.n },
-    top_churches: top, recent: recentRegs.map((r) => ({ id: r.id, church: r.church, city: r.city, n: r.n, status: r.status, created_at: r.created_at })),
-    daily: days.map((d) => ({ day: d, participants: regByDay[d], visitors: visByDay[d] || 0 })),
+    now: now(),
+    event: { name: s.event_name, dates_label: s.dates_label, location: s.location, start_at: s.start_at, end_at: s.end_at },
+    participants: ppl.total, paid: ppl.paid, churches: churchCount.n, visitors: vis.n,
+    top_churches: top, recent, sessions: sessionTimes(s.start_at, sessions),
   });
 });
 A.get("/settings", async (req, res) => res.json(await getSettings()));

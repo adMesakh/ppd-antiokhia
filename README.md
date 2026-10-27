@@ -9,7 +9,7 @@ Satu aplikasi web berisi tiga bagian:
 | `/status.html?t=…` | Koordinator gereja | Status pembayaran dan pass QR tiap peserta |
 | `/admin/login.html` | Panitia | Halaman masuk. Membuka `/admin/` tanpa login otomatis diarahkan ke sini |
 | `/admin/` | Panitia (laptop) | Pendaftaran & approval tunai, peserta & QR, cetak ID card, gereja, jadwal sesi, kehadiran, hasil & lomba, galeri, konten website, akun |
-| `/admin/wallboard.html` | Panitia (TV/monitor) | Layar monitor: peserta, gereja, pengunjung website, gereja terbanyak, pendaftaran terbaru, tren 14 hari, pembayaran, kehadiran. Perlu login admin |
+| `/admin/wallboard.html` | Panitia (TV/monitor) | Layar monitor: jumlah peserta, gereja, pengunjung website, peserta terbanyak per gereja, acara yang sedang berlangsung, pendaftaran terbaru. Perlu login admin |
 | `/scan/` | Petugas scanner (HP Android) | PWA offline: scan kamera, cari nama, ketik kode, sinkron otomatis |
 
 Panduan langkah demi langkah untuk panitia ada di **PANDUAN.md**.

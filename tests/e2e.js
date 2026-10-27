@@ -388,19 +388,27 @@ async function api(method, url, body, cookie) {
 
     // ---------- Wallboard TV + penghitung pengunjung ----------
     const before = (await api("GET", "/api/admin/wallboard", null, cookie)).data.visitors;
+    const visits = async () => (await api("GET", "/api/admin/wallboard", null, cookie)).data.visitors;
     const vctx = await browser.newContext({ userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36" }); const vp = await vctx.newPage();
     await vp.goto(BASE + "/"); await vp.waitForTimeout(600); await vp.goto(BASE + "/daftar.html"); await vp.waitForTimeout(600);
-    const after = (await api("GET", "/api/admin/wallboard", null, cookie)).data.visitors;
-    check(after.unique_all === before.unique_all + 1 && after.views_all === before.views_all + 2, `Pengunjung website terhitung (1 perangkat baru, 2 halaman dibuka → ${after.unique_all} pengunjung)`);
+    const after = await visits();
+    check(after === before + 1, `Pengunjung website terhitung per perangkat (2 halaman dibuka di 1 HP → +1, total ${after})`);
     const wctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } }); const wp = await wctx.newPage(); watch(wp, "wallboard");
     await wp.goto(BASE + "/admin/wallboard.html");
     check(/login\.html\?next=%2Fadmin%2Fwallboard\.html/.test(wp.url()), "Wallboard tanpa login diarahkan ke halaman login");
     await wp.fill("#lgUser", "admin"); await wp.fill("#lgPass", "panitia-rahasia"); await wp.click("#lgBtn");
     await wp.waitForURL(/wallboard\.html$/); await wp.waitForSelector("#rank li .nm"); await wp.waitForTimeout(1200);
     const wb = await api("GET", "/api/admin/wallboard", null, cookie);
-    const shown = await wp.evaluate(() => ({ p: document.querySelector("#kPeserta").textContent, g: document.querySelector("#kGereja").textContent, top: document.querySelector("#rank .nm").firstChild.textContent, feed: document.querySelectorAll("#feed li:not([hidden])").length, overflow: document.documentElement.scrollHeight > innerHeight + 2 }));
-    check(shown.p === wb.data.participants.total.toLocaleString("id-ID") && shown.g === String(wb.data.churches.registered) && shown.top === wb.data.top_churches[0].church && shown.feed > 0 && !shown.overflow,
-      `Wallboard TV: ${shown.p} peserta, ${shown.g} gereja, teratas ${shown.top}, muat satu layar 1080p`);
+    const shown = await wp.evaluate(() => ({ p: document.querySelector("#kPeserta").textContent, g: document.querySelector("#kGereja").textContent, v: document.querySelector("#kVisit").textContent, top: document.querySelector("#rank .nm").textContent, feed: document.querySelectorAll("#feed li:not([hidden])").length, now: document.querySelector("#now").innerText, overflow: document.documentElement.scrollHeight > innerHeight + 2 }));
+    check(shown.p === wb.data.participants.toLocaleString("id-ID") && shown.g === String(wb.data.churches) && shown.v === wb.data.visitors.toLocaleString("id-ID") && shown.top === wb.data.top_churches[0].church && shown.feed > 0 && !shown.overflow,
+      `Wallboard TV: ${shown.p} peserta, ${shown.g} gereja, ${shown.v} pengunjung, teratas ${shown.top}, muat satu layar 1080p`);
+    check(/Belum dimulai/.test(shown.now) && /Registrasi ulang/i.test(shown.now), "Acara berlangsung: sebelum acara menampilkan sesi pertama (" + shown.now.replace(/\s+/g, " ").trim() + ")");
+    // saat acara: sesi yang jamnya sedang berjalan tampil beserta jumlah hadir
+    await wp.clock.install({ time: new Date(wb.data.sessions.find((x) => x.title === "Registrasi ulang").start).getTime() + 30 * 60e3 });
+    await wp.reload(); await wp.waitForSelector("#now .title"); await wp.waitForTimeout(800);
+    const live = await wp.evaluate(() => document.querySelector("#now").innerText);
+    const reg = wb.data.sessions.find((x) => x.title === "Registrasi ulang");
+    check(/Sedang berlangsung/.test(live) && /Registrasi ulang/i.test(live) && live.includes(String(reg.present)) && /Berikutnya/.test(live), `Acara berlangsung saat jam sesi: ${live.replace(/\s+/g, " ").trim()}`);
     check(!JSON.stringify(wb.data).includes("Pdt. Yohanes") && !JSON.stringify(wb.data).includes("0812"), "Wallboard tidak memuat nama atau nomor WA peserta");
     await wp.screenshot({ path: path.join(SHOTS, "wallboard-1080p.png") });
 
