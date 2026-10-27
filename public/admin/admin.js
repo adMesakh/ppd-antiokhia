@@ -359,49 +359,28 @@
   // =====================================================================
   // GEREJA
   // =====================================================================
-  let churchMode = "one";
+  let churchMode = "one", churchQuery = "";
   VIEWS.gereja = async () => {
     const list = await churches(true);
     view.innerHTML = `
-      <div class="head"><div><h1>Gereja</h1><p class="muted">Daftar ini muncul sebagai pilihan di formulir pendaftaran. ${list.length} gereja.</p></div></div>
-      <form class="card" id="cAdd">
-        <div class="card-head"><h3>Tambah gereja</h3>
-          <div class="radio-seg" role="radiogroup" aria-label="Jumlah gereja">
-            <label><input type="radio" name="cmode" value="one"${churchMode === "one" ? " checked" : ""}>1 gereja</label>
-            <label><input type="radio" name="cmode" value="bulk"${churchMode === "bulk" ? " checked" : ""}>Banyak gereja</label>
-          </div></div>
-        <div data-cm="one" class="form-grid"${churchMode === "one" ? "" : " hidden"}><label>Nama gereja<input name="name" placeholder="mis. GKII Jemaat Sungai Raya"></label><label>Kabupaten / kota<input name="city" placeholder="mis. Kubu Raya"></label></div>
-        <label data-cm="bulk"${churchMode === "bulk" ? "" : " hidden"}><span>Satu gereja per baris, format <span class="mono">Nama, Kota</span></span><textarea name="bulk" placeholder="GKII Jemaat Sungai Raya, Kubu Raya&#10;GPdI Siloam, Pontianak"></textarea><span class="hint">Bisa disalin langsung dari Excel (kolom nama dan kota). Nama yang sudah ada dilewati.</span></label>
-        <div><button class="btn primary" id="cBtn">${churchMode === "one" ? "Tambah gereja" : "Tambahkan semua"}</button></div>
-      </form>
-      ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Gereja</th><th>Kota</th><th>Pendaftaran</th><th>Peserta lunas</th><th></th></tr></thead><tbody>
-      ${list.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.city)}</td><td class="num">${c.registrations}</td><td class="num">${c.paid_participants}</td>
-        <td class="actions"><button class="btn sm" data-edit="${c.id}">Ubah</button> <button class="btn sm danger" data-del="${c.id}" ${c.registrations ? "disabled title='Sudah punya pendaftaran'" : ""}>Hapus</button></td></tr>`).join("")}
-      </tbody></table></div>` : `<div class="card empty">Belum ada gereja. Tambahkan di atas supaya formulir pendaftaran bisa dipakai.</div>`}`;
-    const cf = $("#cAdd");
-    cf.onchange = (e) => {
-      if (e.target.name !== "cmode") return;
-      churchMode = e.target.value;
-      $$("[data-cm]", cf).forEach((el) => (el.hidden = el.dataset.cm !== churchMode));
-      $("#cBtn").textContent = churchMode === "one" ? "Tambah gereja" : "Tambahkan semua";
-      $(churchMode === "one" ? "[name=name]" : "[name=bulk]", cf).focus();
-    };
-    cf.onsubmit = async (e) => {
-      e.preventDefault();
-      const f = new FormData(cf);
-      try {
-        if (churchMode === "one") {
-          if (!f.get("name").trim()) return toast("Isi nama gereja.", true);
-          const r = await POST("/api/admin/churches", { name: f.get("name"), city: f.get("city") });
-          toast(r.added ? "Gereja ditambahkan" : "Nama sudah ada");
-        } else {
-          if (!f.get("bulk").trim()) return toast("Tempel daftar gereja dulu.", true);
-          const r = await POST("/api/admin/churches", { bulk: f.get("bulk") });
-          toast(`${r.added} ditambahkan, ${r.skipped} dilewati`);
-        }
-        VIEWS.gereja();
-      } catch (x) { fail(x); }
-    };
+      <div class="head"><div><h1>Gereja</h1><p class="muted">Daftar ini muncul sebagai pilihan di formulir pendaftaran. ${list.length} gereja.</p></div>
+        <div class="head-actions"><button class="btn primary" id="addC">+ Tambah gereja</button></div></div>
+      ${list.length ? `<div class="toolbar"><input type="search" id="cQ" placeholder="Cari nama gereja atau kota" value="${esc(churchQuery)}" aria-label="Cari gereja"><span class="muted" id="cCount"></span></div>
+      <div id="cTable"></div>` : `<div class="card empty">Belum ada gereja. Klik <b>+ Tambah gereja</b> supaya formulir pendaftaran bisa dipakai.</div>`}`;
+    const norm = (x) => String(x || "").toLowerCase();
+    function drawC() {
+      if (!$("#cTable")) return;
+      const q = norm(churchQuery).trim();
+      const rows = q ? list.filter((c) => norm(c.name).includes(q) || norm(c.city).includes(q)) : list;
+      $("#cCount").textContent = q ? `${rows.length} dari ${list.length} gereja` : `${list.length} gereja`;
+      $("#cTable").innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Gereja</th><th>Kota</th><th>Pendaftaran</th><th>Peserta lunas</th><th></th></tr></thead><tbody>
+        ${rows.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.city)}</td><td class="num">${c.registrations}</td><td class="num">${c.paid_participants}</td>
+          <td class="actions"><button class="btn sm" data-edit="${c.id}">Ubah</button> <button class="btn sm danger" data-del="${c.id}" ${c.registrations ? "disabled title='Sudah punya pendaftaran'" : ""}>Hapus</button></td></tr>`).join("")}
+        </tbody></table></div>` : `<div class="card empty">Tidak ada gereja yang cocok dengan "${esc(churchQuery)}".</div>`;
+    }
+    drawC();
+    if ($("#cQ")) $("#cQ").oninput = (e) => { churchQuery = e.target.value; drawC(); };
+    $("#addC").onclick = () => churchAddDialog();
     view.onclick = async (e) => {
       const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]");
       if (ed) {
@@ -416,6 +395,44 @@
       }
     };
   };
+  function churchAddDialog() {
+    const body = openDialog(`<div class="dlg-head"><h2>Tambah gereja</h2><button class="btn ghost sm" data-close aria-label="Tutup">✕</button></div>
+      <form id="cAdd" style="display:grid;gap:14px">
+        <div class="radio-seg" role="radiogroup" aria-label="Jumlah gereja" style="justify-self:start">
+          <label><input type="radio" name="cmode" value="one"${churchMode === "one" ? " checked" : ""}>1 gereja</label>
+          <label><input type="radio" name="cmode" value="bulk"${churchMode === "bulk" ? " checked" : ""}>Banyak gereja</label>
+        </div>
+        <div data-cm="one" class="form-grid"${churchMode === "one" ? "" : " hidden"}><label>Nama gereja<input name="name" placeholder="mis. GKII Jemaat Sungai Raya"></label><label>Kabupaten / kota<input name="city" placeholder="mis. Kubu Raya"></label></div>
+        <label data-cm="bulk"${churchMode === "bulk" ? "" : " hidden"}><span>Satu gereja per baris, format <span class="mono">Nama, Kota</span></span><textarea name="bulk" rows="8" placeholder="GKII Jemaat Sungai Raya, Kubu Raya&#10;GPdI Siloam, Pontianak"></textarea><span class="hint">Bisa disalin langsung dari Excel (kolom nama dan kota). Nama yang sudah ada dilewati.</span></label>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Batal</button><button class="btn primary" id="cBtn">${churchMode === "one" ? "Tambah gereja" : "Tambahkan semua"}</button></div>
+      </form>`);
+    const cf = $("#cAdd", body);
+    const focusFirst = () => $(churchMode === "one" ? "[name=name]" : "[name=bulk]", cf).focus();
+    setTimeout(focusFirst, 30);
+    cf.onchange = (e) => {
+      if (e.target.name !== "cmode") return;
+      churchMode = e.target.value;
+      $$("[data-cm]", cf).forEach((el) => (el.hidden = el.dataset.cm !== churchMode));
+      $("#cBtn", cf).textContent = churchMode === "one" ? "Tambah gereja" : "Tambahkan semua";
+      focusFirst();
+    };
+    cf.onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(cf);
+      try {
+        if (churchMode === "one") {
+          if (!f.get("name").trim()) return toast("Isi nama gereja.", true);
+          const r = await POST("/api/admin/churches", { name: f.get("name"), city: f.get("city") });
+          toast(r.added ? "Gereja ditambahkan" : "Nama sudah ada");
+        } else {
+          if (!f.get("bulk").trim()) return toast("Tempel daftar gereja dulu.", true);
+          const r = await POST("/api/admin/churches", { bulk: f.get("bulk") });
+          toast(`${r.added} ditambahkan, ${r.skipped} dilewati`);
+        }
+        closeDialog(); VIEWS.gereja();
+      } catch (x) { fail(x); }
+    };
+  }
 
   // =====================================================================
   // JADWAL
