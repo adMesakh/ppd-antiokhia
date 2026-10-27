@@ -181,10 +181,21 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .contest li small{display:block;color:var(--muted)}
 
 /* galeri */
-.gallery{columns:3 260px;column-gap:14px}
-.gallery figure{break-inside:avoid;margin:0 0 14px;border-radius:var(--r-md);overflow:hidden;background:var(--panel)}
-.gallery img{display:block;width:100%;height:auto}
-.gallery figcaption{padding:10px 14px;font-size:.86rem;color:var(--muted)}
+/* dokumentasi: satu baris yang bergeser otomatis; bisa diusap di HP */
+.slider{position:relative}
+.gallery{--h:clamp(220px,34vw,380px);display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;outline:none}
+.gallery::-webkit-scrollbar{display:none}
+.gallery figure{position:relative;flex:none;height:var(--h);margin:0;border-radius:var(--r-md);overflow:hidden;background:var(--panel);scroll-snap-align:start}
+.gallery img{display:block;height:100%;width:auto;max-width:min(86vw,680px);object-fit:cover}
+.gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:28px 14px 12px;font-size:.86rem;color:#F7F3EE;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7))}
+.gallery:focus-visible{outline:3px solid var(--orange);outline-offset:4px;border-radius:var(--r-md)}
+.slide-btn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;display:grid;place-content:center;
+  background:rgba(18,17,16,.72);color:#F7F3EE;cursor:pointer;backdrop-filter:blur(6px)}
+.slide-btn svg{width:20px;height:20px}
+.slide-btn.prev{left:10px}.slide-btn.next{right:10px}
+.slide-btn:hover{background:var(--orange);color:var(--orange-ink)}
+.slider.static .slide-btn{display:none}
 
 /* pendaftaran */
 .steps{list-style:none;margin:0 0 32px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;counter-reset:s}
@@ -306,3 +317,4 @@ body.no-player{padding-bottom:0}
 @media (max-width:420px){.mode-pick{grid-template-columns:1fr}}
 .prow.solo{grid-template-columns:minmax(0,1fr)}
 .prow.solo .meta{grid-column:1}
+@media (hover:none){.slide-btn{display:none}}

@@ -190,7 +190,38 @@
   function renderGallery(photos) {
     if (!photos.length) return;
     $("#galeri").hidden = false;
-    $("#gallery").innerHTML = photos.map((p) => `<figure><img src="${esc(p.url)}" alt="${esc(p.caption || "Dokumentasi retreat")}" loading="lazy"${p.width && p.height ? ` width="${p.width}" height="${p.height}"` : ""}>${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ""}</figure>`).join("");
+    $("#gallery").innerHTML = photos.map((p) => `<figure><img src="${esc(p.url)}" alt="${esc(p.caption || "Dokumentasi retreat")}" loading="lazy" decoding="async"${p.width && p.height ? ` width="${p.width}" height="${p.height}"` : ""}>${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ""}</figure>`).join("");
+    startSlider();
+  }
+
+  // Geser otomatis tiap 3,5 detik; berhenti saat disentuh/diarahkan mouse, lanjut lagi setelahnya.
+  function startSlider() {
+    const track = $("#gallery"), box = $("#slider");
+    const figs = () => [...track.children];
+    const fits = () => track.scrollWidth <= track.clientWidth + 4;
+    box.classList.toggle("static", fits());
+    const step = (dir) => {
+      const x = track.scrollLeft, max = track.scrollWidth - track.clientWidth;
+      if (dir > 0 && x >= max - 4) return track.scrollTo({ left: 0 });
+      if (dir < 0 && x <= 4) return track.scrollTo({ left: max });
+      const next = dir > 0 ? figs().find((f) => f.offsetLeft > x + 4) : figs().reverse().find((f) => f.offsetLeft < x - 4);
+      track.scrollTo({ left: next ? Math.min(next.offsetLeft - track.offsetLeft, max) : (dir > 0 ? max : 0) });
+    };
+    $("#slPrev").onclick = () => { step(-1); hold(); };
+    $("#slNext").onclick = () => { step(1); hold(); };
+    track.onkeydown = (e) => { if (e.key === "ArrowRight") { step(1); hold(); e.preventDefault(); } if (e.key === "ArrowLeft") { step(-1); hold(); e.preventDefault(); } };
+    let timer = null, pausedUntil = 0, hover = false;
+    const hold = () => { pausedUntil = Date.now() + 6000; };
+    ["pointerdown", "touchstart", "wheel"].forEach((t) => track.addEventListener(t, hold, { passive: true }));
+    box.onmouseenter = () => (hover = true); box.onmouseleave = () => (hover = false);
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    clearInterval(timer);
+    if (!reduce) timer = setInterval(() => {
+      if (hover || Date.now() < pausedUntil || document.hidden || fits()) return;
+      const r = track.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; // hanya saat terlihat
+      step(1);
+    }, 3500);
+    window.addEventListener("resize", () => box.classList.toggle("static", fits()));
   }
 
 })();

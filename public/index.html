@@ -124,7 +124,11 @@
 <section id="galeri" hidden style="padding-top:0">
   <div class="wrap">
     <div class="section-head"><span class="tape">Dari lokasi</span><h2><b>Dokumentasi</b></h2></div>
-    <div class="gallery" id="gallery"></div>
+    <div class="slider" id="slider">
+      <div class="gallery" id="gallery" tabindex="0" aria-label="Foto dokumentasi, geser ke samping"></div>
+      <button type="button" class="slide-btn prev" id="slPrev" aria-label="Foto sebelumnya"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="slide-btn next" id="slNext" aria-label="Foto berikutnya"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
   </div>
 </section>
 
