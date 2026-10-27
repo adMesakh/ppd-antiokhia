@@ -6,7 +6,11 @@ const path = require("path");
 const fs = require("fs");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
-const USE_PG = !!process.env.DATABASE_URL;
+// Nama variabel bisa berawalan bila "Custom Prefix" diisi saat menyambungkan Neon (misalnya STORAGE_DATABASE_URL)
+const envFind = (re) => Object.keys(process.env).sort().find((k) => re.test(k) && process.env[k]);
+const DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL
+  || process.env[envFind(/^(?!.*UNPOOLED).*_DATABASE_URL$/)] || process.env[envFind(/^(?!.*(NON_POOLING|UNPOOLED|PRISMA)).*_POSTGRES_URL$/)] || "";
+const USE_PG = !!DB_URL;
 
 const NOW = `to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 const SCHEMA = `
@@ -123,7 +127,7 @@ let driver = null; // { query(text, params), exec(sql), tx(fn) }
 let pgPool = null;
 function makePg() {
   const { Pool } = require("pg");
-  const pool = pgPool || (pgPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000 }));
+  const pool = pgPool || (pgPool = new Pool({ connectionString: DB_URL, max: 3, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 10_000 }));
   if (process.env.VERCEL && !pool._ppdAttached) {
     // Vercel menutup koneksi menganggur dengan rapi sebelum fungsi ditidurkan
     try { require("@vercel/functions").attachDatabasePool(pool); } catch (_) {}
