@@ -7,6 +7,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY server ./server
 COPY public ./public
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data TRUST_PROXY=1
-VOLUME ["/data"]
 EXPOSE 3000
 CMD ["node", "server/index.js"]
