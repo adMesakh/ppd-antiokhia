@@ -115,12 +115,27 @@ async function api(method, url, body, cookie) {
     await pub.screenshot({ path: path.join(SHOTS, "landing-mobile.png"), fullPage: false });
     await pub.click("#heroCta");
     await pub.waitForURL(/\/daftar\.html/);
-    check(true, "Tombol Daftarkan rombongan membuka halaman pendaftaran terpisah");
+    check(true, "Tombol Daftar sekarang membuka halaman pendaftaran terpisah");
     await pub.waitForSelector("#church option:nth-child(2)", { state: "attached" });
     await pub.screenshot({ path: path.join(SHOTS, "daftar-mobile.png"), fullPage: true });
     const churchVal = await pub.locator("#church option", { hasText: "GPdI Siloam" }).getAttribute("value");
+    // --- daftar diri sendiri (pilihan bawaan) ---
+    check(await pub.isChecked("[name=mode][value=sendiri]") && await pub.locator(".prow").count() === 1 && await pub.locator("#addWrap").isHidden() && !(await pub.$("#coord")),
+      "Formulir bawaan: daftar diri sendiri, satu data diri, tanpa koordinator");
+    await pub.selectOption("#church", churchVal); await pub.fill("#phone", "0813 1111 2222");
+    await pub.locator(".prow [data-f=name]").fill("Yosua Mandiri");
+    await pub.locator(".prow input[data-f=gender][value=L]").check({ force: true });
+    await pub.click("#submitBtn"); await pub.waitForURL(/status\.html/); await pub.waitForSelector(".code");
+    const soloCode = (await pub.locator(".code").textContent()).trim();
+    const soloReg = (await api("GET", "/api/admin/registrations?q=" + soloCode, null, cookie)).data[0];
+    check(soloReg && soloReg.n === 1 && soloReg.coordinator === "Yosua Mandiri", `Daftar sendiri terkirim (${soloCode}, 1 orang, pendaftar = nama peserta)`);
+    check((await api("POST", "/api/registrations", { church_id: Number(churchVal), phone: "081311112222", mode: "sendiri", participants: [{ name: "A Satu", role: "peserta", gender: "L" }, { name: "B Dua", role: "peserta", gender: "P" }] })).status === 400, "Server menolak 'daftar sendiri' berisi lebih dari satu orang");
+    // --- daftar rombongan ---
+    await pub.goto(BASE + "/daftar.html"); await pub.waitForSelector("#church option:nth-child(2)", { state: "attached" });
+    await pub.check("[name=mode][value=rombongan]", { force: true });
+    check(await pub.locator(".prow").count() === 3 && await pub.locator("#addWrap").isVisible(), "Pilih Rombongan: muncul 3 baris peserta + tombol tambah");
     await pub.selectOption("#church", churchVal);
-    await pub.fill("#coord", "Rina Koordinator"); await pub.fill("#phone", "0812 3456 7890");
+    await pub.fill("#phone", "0812 3456 7890");
     const rows = pub.locator(".prow");
     const fillRow = async (i, name, role, g) => {
       const r = rows.nth(i);

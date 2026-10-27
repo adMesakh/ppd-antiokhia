@@ -1,4 +1,4 @@
-// Halaman pendaftaran rombongan dan cek status (terpisah dari landing page).
+// Halaman pendaftaran (diri sendiri atau rombongan) dan cek status (terpisah dari landing page).
 (function () {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -33,14 +33,14 @@
       : `<option value="">Daftar gereja belum diisi panitia</option>`;
   }
 
-  let rows = [], rid = 0;
+  let rows = [], rid = 0, mode = "sendiri";
   const newRow = () => ({ k: ++rid, name: "", role: "peserta", gender: "" });
   function renderRows() {
     $("#plist").innerHTML = rows.map((r, i) => `
-      <div class="prow" data-k="${r.k}">
-        <span class="n">${i + 1}</span>
+      <div class="prow${mode === "sendiri" ? " solo" : ""}" data-k="${r.k}">
+        ${mode === "rombongan" ? `<span class="n">${i + 1}</span>` : ""}
         <input aria-label="Nama peserta ${i + 1}" id="pn${r.k}" value="${esc(r.name)}" placeholder="Nama lengkap" data-f="name" autocomplete="off">
-        <button type="button" class="del" aria-label="Hapus peserta ${i + 1}" data-del="${r.k}"${rows.length === 1 ? " disabled" : ""}>×</button>
+        ${mode === "rombongan" ? `<button type="button" class="del" aria-label="Hapus peserta ${i + 1}" data-del="${r.k}"${rows.length === 1 ? " disabled" : ""}>×</button>` : ""}
         <div class="meta">
           <div class="radios" role="radiogroup" aria-label="Status peserta ${i + 1}">
             <label><input type="radio" name="ps${r.k}" value="gembala" data-f="role"${r.role === "gembala" ? " checked" : ""}>Gembala sidang</label>
@@ -79,8 +79,21 @@
   });
   $("#church").addEventListener("change", updateSum);
   $("#addP").onclick = () => { rows.push(newRow()); renderRows(); const el = document.getElementById("pn" + rows[rows.length - 1].k); el && el.focus(); };
-  rows = [newRow(), newRow(), newRow()];
-  renderRows();
+  function setMode(m) {
+    mode = m;
+    const solo = m === "sendiri";
+    if (solo) rows = [rows.find((r) => r.name.trim()) || rows[0] || newRow()];
+    else while (rows.length < 3) rows.push(newRow());
+    $("#pLegend").textContent = solo ? "Data diri" : "Peserta";
+    $("#addWrap").hidden = solo;
+    $("#ppLabel").textContent = solo ? "Pratinjau pass kamu" : "Pratinjau pass peserta pertama";
+    $("#submitBtn").textContent = solo ? "Kirim pendaftaran" : "Kirim pendaftaran rombongan";
+    renderRows();
+  }
+  document.querySelectorAll("[name=mode]").forEach((el) => el.addEventListener("change", () => setMode(el.value)));
+  if (/rombongan/.test(location.hash)) $("[name=mode][value=rombongan]").checked = true;
+  rows = [newRow()];
+  setMode($("[name=mode]:checked").value);
 
   $("#regForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -88,9 +101,8 @@
     const filled = rows.filter((r) => r.name.trim());
     const problems = [];
     if (!$("#church").value) problems.push("gereja asal");
-    if ($("#coord").value.trim().length < 2) problems.push("nama koordinator");
     if (!/^(\+62|62|0)8\d{7,12}$/.test($("#phone").value.replace(/[\s-]/g, ""))) problems.push("nomor WhatsApp yang valid (mulai 08…)");
-    if (!filled.length) problems.push("minimal satu peserta");
+    if (!filled.length) problems.push(mode === "sendiri" ? "nama lengkapmu" : "minimal satu peserta");
     if (filled.some((r) => !r.gender)) problems.push("jenis kelamin setiap peserta");
     if (problems.length) { err.textContent = "Lengkapi dulu: " + problems.join(", ") + "."; err.hidden = false; return; }
     const btn = $("#submitBtn"); btn.disabled = true; btn.textContent = "Mengirim…";
@@ -98,7 +110,7 @@
       const res = await fetch("/api/registrations", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          church_id: Number($("#church").value), coordinator: $("#coord").value, phone: $("#phone").value,
+          church_id: Number($("#church").value), phone: $("#phone").value, mode,
           participants: filled.map((r) => ({ name: r.name, role: r.role, gender: r.gender })),
         }),
       });
@@ -108,7 +120,7 @@
       go("/status.html?t=" + encodeURIComponent(data.status_token) + "&baru=1");
     } catch (x) {
       err.textContent = x.message === "Failed to fetch" ? "Tidak ada koneksi. Cek internet lalu coba lagi." : x.message;
-      err.hidden = false; btn.disabled = false; btn.textContent = "Kirim pendaftaran";
+      err.hidden = false; btn.disabled = false; btn.textContent = mode === "sendiri" ? "Kirim pendaftaran" : "Kirim pendaftaran rombongan";
     }
   });
 

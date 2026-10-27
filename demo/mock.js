@@ -205,7 +205,7 @@
     const ps = [];
     for (const [i, p] of (b.participants || []).entries()) { const v = validParticipant(p); if (!v) throw E(400, `Data peserta nomor ${i + 1} belum lengkap.`); ps.push(v); }
     if (!ps.length) throw E(400, "Tambahkan minimal satu peserta.");
-    const r = createReg({ church_id: c.id, coordinator: clean(b.coordinator, 80) || "Didaftarkan admin", phone, participants: ps, status: b.status === "lunas" ? "lunas" : "menunggu", fee: Math.max(0, Math.round(Number(b.fee_per_person) || 0)), note: clean(b.note, 300), source: "admin", userId: 1 });
+    const r = createReg({ church_id: c.id, coordinator: clean(b.coordinator, 80) || ps[0].name, phone, participants: ps, status: b.status === "lunas" ? "lunas" : "menunggu", fee: Math.max(0, Math.round(Number(b.fee_per_person) || 0)), note: clean(b.note, 300), source: "admin", userId: 1 });
     return { id: r.id, code: r.code, status: r.status };
   });
   on("PUT", /^\/api\/admin\/registrations\/(\d+)$/, (m, q, b) => {

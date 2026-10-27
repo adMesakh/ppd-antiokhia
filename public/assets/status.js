@@ -36,7 +36,7 @@
         </div>
         <dl class="kv">
           <dt>Gereja</dt><dd>${esc(d.church)}${d.city ? ", " + esc(d.city) : ""}</dd>
-          <dt>Koordinator</dt><dd>${esc(d.coordinator)} · ${esc(d.phone)}</dd>
+          <dt>Pendaftar</dt><dd>${esc(d.coordinator)} · ${esc(d.phone)}</dd>
           <dt>Peserta</dt><dd>${d.participants.length} orang${d.total ? " · total " + rupiah(d.total) : ""}</dd>
         </dl>
         ${st === "menunggu" ? `<div class="msg info">${esc(d.payment_note)} Kode: <b>${esc(d.code)}</b>. Halaman ini berubah otomatis setelah admin mengonfirmasi.</div>` : ""}

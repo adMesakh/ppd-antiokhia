@@ -294,3 +294,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 /* halaman formulir */
 body.no-player{padding-bottom:0}
 .form-page{padding-top:40px}
+/* pilihan daftar sendiri / rombongan */
+.mode-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mode-pick label{position:relative;display:grid;gap:4px;padding:16px 18px;border-radius:var(--r-md);border:1.5px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer}
+.mode-pick label b{font-size:1.02rem}
+.mode-pick label span{color:var(--muted);font-size:.86rem;font-weight:500}
+.mode-pick input{position:absolute;opacity:0;width:1px;height:1px}
+.mode-pick label:has(input:checked){border-color:var(--orange);background:rgba(255,138,61,.1)}
+.mode-pick label:has(input:checked) b{color:var(--orange)}
+.mode-pick label:has(input:focus-visible){outline:3px solid var(--orange);outline-offset:2px}
+@media (max-width:420px){.mode-pick{grid-template-columns:1fr}}
+.prow.solo{grid-template-columns:minmax(0,1fr)}
+.prow.solo .meta{grid-column:1}

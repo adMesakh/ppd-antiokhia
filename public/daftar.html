@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Daftar · PPD Antiokhia</title>
-<meta name="description" content="PPD Antiokhia, retreat pemuda antar gereja se-Kalimantan Barat. Daftarkan rombongan gerejamu.">
+<meta name="description" content="PPD Antiokhia, retreat pemuda antar gereja se-Kalimantan Barat. Daftar sendiri atau bersama rombongan gerejamu.">
 <meta name="theme-color" content="#121110">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,28 +35,32 @@
 <section class="form-page">
   <div class="wrap">
     <div class="section-head">
-      <span class="tape">Pendaftaran rombongan</span>
-      <h2>Daftarkan <b>gerejamu</b></h2>
-      <p class="lede">Satu koordinator mengisi semua peserta dari gerejanya. Setelah terkirim, kamu mendapat kode pendaftaran untuk pembayaran tunai ke panitia.</p>
+      <span class="tape">Pendaftaran</span>
+      <h2>Daftar <b>retreat</b></h2>
+      <p class="lede">Daftar untuk dirimu sendiri, atau sekaligus untuk rombongan dari gerejamu. Setelah terkirim, kamu mendapat kode pendaftaran untuk pembayaran tunai ke panitia.</p>
     </div>
     <div class="reg-layout">
       <div>
         <div class="panel closed" id="regClosed" hidden><h3>Pendaftaran sedang ditutup</h3><p class="fine">Hubungi panitia untuk informasi lebih lanjut.</p></div>
         <form class="panel" id="regForm" novalidate>
           <fieldset>
+            <legend>Daftar untuk</legend>
+            <div class="mode-pick" role="radiogroup" aria-label="Daftar untuk">
+              <label><input type="radio" name="mode" value="sendiri" checked><b>Diri sendiri</b><span>Satu orang, cukup isi datamu</span></label>
+              <label><input type="radio" name="mode" value="rombongan"><b>Rombongan</b><span>Beberapa orang dari gereja yang sama</span></label>
+            </div>
+          </fieldset>
+          <fieldset>
             <legend>Gereja</legend>
             <label for="church">Gereja asal <span class="hint">Tidak ada di daftar? Hubungi panitia.</span>
               <select id="church" name="church" required><option value="">Memuat daftar gereja…</option></select>
             </label>
-            <div class="grid2">
-              <label for="coord">Nama koordinator<input id="coord" name="coord" autocomplete="name" required></label>
-              <label for="phone">Nomor WhatsApp koordinator<input id="phone" name="phone" inputmode="tel" autocomplete="tel" placeholder="08…" required></label>
-            </div>
+            <label for="phone">Nomor WhatsApp <span class="hint">Untuk konfirmasi pembayaran dan cek status</span><input id="phone" name="phone" inputmode="tel" autocomplete="tel" placeholder="08…" required></label>
           </fieldset>
           <fieldset>
-            <legend>Peserta</legend>
+            <legend id="pLegend">Data diri</legend>
             <div id="plist" style="display:grid;gap:10px"></div>
-            <div><button type="button" class="btn-ghost btn-small" id="addP"><svg width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg>Tambah peserta</button></div>
+            <div id="addWrap" hidden><button type="button" class="btn-ghost btn-small" id="addP"><svg width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg>Tambah peserta</button></div>
           </fieldset>
           <div class="msg err" id="formErr" role="alert" hidden></div>
           <div class="summary">
@@ -66,7 +70,7 @@
         </form>
       </div>
       <aside class="side">
-        <span class="eyebrow">Pratinjau pass peserta pertama</span>
+        <span class="eyebrow" id="ppLabel">Pratinjau pass kamu</span>
         <div class="pass" id="passPreview">
           <div class="slot"></div>
           <div class="band" id="ppRole">Peserta</div>
@@ -94,12 +98,12 @@
       <div style="display:grid;gap:10px;justify-items:start">
         <span class="tape">Cek status</span>
         <h3>Sudah mendaftar?</h3>
-        <p class="fine">Masukkan kode pendaftaran dan nomor WhatsApp koordinator untuk melihat status pembayaran dan pass peserta.</p>
+        <p class="fine">Masukkan kode pendaftaran dan nomor WhatsApp yang dipakai saat mendaftar untuk melihat status pembayaran dan pass peserta.</p>
       </div>
       <div id="myRegs" class="fine" hidden></div>
       <form id="lookupForm" class="grid2" novalidate>
         <label for="lkCode">Kode pendaftaran<input id="lkCode" placeholder="PPD27-XXXXX" autocapitalize="characters" autocomplete="off"></label>
-        <label for="lkPhone">Nomor WhatsApp koordinator<input id="lkPhone" inputmode="tel" placeholder="08…"></label>
+        <label for="lkPhone">Nomor WhatsApp<input id="lkPhone" inputmode="tel" placeholder="08…"></label>
         <div class="msg err" id="lkErr" role="alert" hidden style="grid-column:1/-1"></div>
         <div><button type="submit" class="btn btn-sun">Lihat status</button></div>
       </form>

@@ -101,14 +101,15 @@ app.post("/api/registrations", rateLimit({ name: "daftar", windowMs: 10 * 60e3, 
   const b = req.body || {};
   const church = await one("SELECT id, name FROM churches WHERE id = $1", [intId(b.church_id)]);
   if (!church) return bad(res, "Pilih gereja asal dari daftar.");
-  const coordinator = cleanText(b.coordinator, 80);
-  if (coordinator.length < 2) return bad(res, "Isi nama koordinator.");
   const phone = normalizePhone(b.phone);
   if (!phone) return bad(res, "Nomor WhatsApp tidak valid. Gunakan format 08xxxxxxxxxx.");
   if (!Array.isArray(b.participants) || !b.participants.length) return bad(res, "Tambahkan minimal satu peserta.");
   if (b.participants.length > 150) return bad(res, "Maksimal 150 peserta per pendaftaran. Pecah menjadi beberapa pendaftaran.");
   const participants = parseParticipants(b.participants, res);
   if (!participants) return;
+  if (b.mode === "sendiri" && participants.length !== 1) return bad(res, "Daftar diri sendiri hanya untuk satu orang. Pilih Rombongan untuk mendaftarkan beberapa orang.");
+  // Nama pendaftar: diisi bila ada, selain itu nama peserta pertama
+  const coordinator = cleanText(b.coordinator, 80) || participants[0].name;
   const reg = await createRegistration({ church_id: church.id, coordinator, phone, consent: !!b.consent, participants, source: "online", status: "menunggu", fee: Number(s.fee_per_person) || 0, prefix: s.code_prefix });
   res.status(201).json({ code: reg.code, status_token: reg.status_token, status: reg.status, church: church.name, participants: participants.length });
 }));
@@ -396,12 +397,13 @@ A.post("/registrations", jsonSmall, async (req, res) => {
   const b = req.body || {};
   const church = await one("SELECT id FROM churches WHERE id = $1", [intId(b.church_id)]);
   if (!church) return bad(res, "Pilih gereja.");
-  const coordinator = cleanText(b.coordinator, 80) || "Didaftarkan admin";
+
   const phone = b.phone ? normalizePhone(b.phone) : "-";
   if (!phone) return bad(res, "Nomor WhatsApp tidak valid.");
   const participants = parseParticipants(b.participants, res);
   if (!participants) return;
   if (!participants.length) return bad(res, "Tambahkan minimal satu peserta.");
+  const coordinator = cleanText(b.coordinator, 80) || participants[0].name;
   const s = await getSettings();
   const status = b.status === "lunas" ? "lunas" : "menunggu";
   const fee = Number.isFinite(Number(b.fee_per_person)) ? Math.max(0, Math.round(Number(b.fee_per_person))) : Number(s.fee_per_person) || 0;

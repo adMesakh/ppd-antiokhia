@@ -126,7 +126,7 @@
         <div class="head-actions"><button class="btn primary" id="newReg">+ Pendaftaran oleh admin</button></div></div>
       <div class="toolbar">
         <div class="seg" id="regSeg">${["menunggu", "lunas", "batal", ""].map((s) => `<button data-s="${s}" class="${regFilter === s ? "on" : ""}">${s ? STATUS[s] : "Semua"}</button>`).join("")}</div>
-        <input type="search" id="regQ" placeholder="Cari kode, gereja, koordinator, WA" value="${esc(regQuery)}">
+        <input type="search" id="regQ" placeholder="Cari kode, gereja, pendaftar, WA" value="${esc(regQuery)}">
       </div>
       <div id="regTable"></div>`;
     $("#regSeg").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; regFilter = b.dataset.s; $$("#regSeg button").forEach((x) => x.classList.toggle("on", x === b)); loadRegs(); };
@@ -138,7 +138,7 @@
   async function loadRegs() {
     const q = new URLSearchParams(); if (regFilter) q.set("status", regFilter); if (regQuery) q.set("q", regQuery);
     const list = await GET("/api/admin/registrations?" + q);
-    $("#regTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th>Kode</th><th>Gereja</th><th>Koordinator</th><th>Peserta</th><th>Tagihan</th><th>Masuk</th><th>Status</th><th></th></tr></thead><tbody>
+    $("#regTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th>Kode</th><th>Gereja</th><th>Pendaftar</th><th>Peserta</th><th>Tagihan</th><th>Masuk</th><th>Status</th><th></th></tr></thead><tbody>
       ${list.map((r) => `<tr>
         <td class="mono">${esc(r.code)}${r.source === "admin" ? `<span class="sub">oleh admin</span>` : ""}</td>
         <td>${esc(r.church)}<span class="sub">${esc(r.city)}</span></td>
@@ -169,7 +169,7 @@
         <div style="display:flex;gap:8px;align-items:center"><span class="pill ${r.status}">${STATUS[r.status]}</span><button class="btn ghost sm" data-close aria-label="Tutup">✕</button></div></div>
       <dl class="kv">
         <dt>Gereja</dt><dd>${esc(r.church.name)}${r.church.city ? ", " + esc(r.church.city) : ""}</dd>
-        <dt>Koordinator</dt><dd>${esc(r.coordinator)} · <span class="mono">${esc(r.phone)}</span></dd>
+        <dt>Pendaftar</dt><dd>${esc(r.coordinator)} · <span class="mono">${esc(r.phone)}</span></dd>
         <dt>Tagihan</dt><dd>${r.participants.length} × ${rupiah(r.fee_per_person)} = <b>${rupiah(total)}</b></dd>
         <dt>Masuk</dt><dd>${fmtTime(r.created_at)}${r.confirmed_at ? ` · lunas ${fmtTime(r.confirmed_at)}` : ""}</dd>
         <dt>Tautan status</dt><dd><a href="${esc(r.status_url)}" target="_blank" rel="noopener">${esc(location.origin + r.status_url)}</a></dd>
@@ -182,7 +182,7 @@
       <div><button class="btn sm" data-add-p>+ Tambah peserta</button></div>
       <div class="dlg-foot">
         <button class="btn danger" data-delete-reg>Hapus pendaftaran</button>
-        <button class="btn" data-edit-reg>Ubah data koordinator</button>
+        <button class="btn" data-edit-reg>Ubah data pendaftar</button>
         ${r.status !== "batal" ? `<button class="btn" data-status="batal">Batalkan</button>` : ""}
         ${r.status !== "menunggu" ? `<button class="btn" data-status="menunggu">Kembalikan ke menunggu</button>` : ""}
         ${r.status === "lunas" ? `<a class="btn" href="/admin/print.html?registration_id=${r.id}" target="_blank">Cetak ID card</a>` : ""}
@@ -206,9 +206,9 @@
         } else if (e.target.closest("[data-add-p]")) {
           participantForm(null, async (v) => { await POST(`/api/admin/registrations/${id}/participants`, v); toast("Peserta ditambahkan"); reload(); }, () => openReg(id));
         } else if (e.target.closest("[data-edit-reg]")) {
-          const b2 = openDialog(`<div class="dlg-head"><h2>Ubah data koordinator</h2></div>
+          const b2 = openDialog(`<div class="dlg-head"><h2>Ubah data pendaftar</h2></div>
             <form id="f" class="form-grid">
-              <label>Nama koordinator<input name="coordinator" value="${esc(r.coordinator)}"></label>
+              <label>Nama pendaftar<input name="coordinator" value="${esc(r.coordinator)}"></label>
               <label>Nomor WhatsApp<input name="phone" value="${esc(r.phone)}"></label>
               <label>Biaya per peserta (Rp)<input name="fee_per_person" type="number" min="0" step="1000" value="${r.fee_per_person}"></label>
               <label class="span2">Catatan admin<input name="note" value="${esc(r.note)}"></label>
@@ -248,7 +248,7 @@
       <form id="rf" style="display:grid;gap:14px">
         <div class="form-grid">
           <label>Gereja<select name="church_id" required>${churchOptions(list)}</select></label>
-          <label>Koordinator<input name="coordinator" placeholder="Opsional"></label>
+          <label>Nama pendaftar<input name="coordinator" placeholder="Opsional, default nama peserta pertama"></label>
           <label>Nomor WhatsApp<input name="phone" placeholder="Opsional"></label>
           <label>Biaya per peserta (Rp)<input name="fee_per_person" type="number" min="0" step="1000" value="${fee}"></label>
         </div>
