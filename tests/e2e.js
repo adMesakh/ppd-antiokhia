@@ -41,10 +41,16 @@ async function api(method, url, body, cookie) {
     await admin.waitForSelector("#app:not([hidden])");
     check(true, "Admin login di halaman terpisah lalu masuk ke dashboard");
     await admin.goto(BASE + "/admin/#gereja");
-    await admin.fill("#cBulk textarea", "GKII Jemaat Sungai Raya, Kubu Raya\nGPdI Siloam, Pontianak\nGBI Rock Singkawang, Singkawang\nGKE Imanuel, Ketapang\nHKBP Pontianak, Pontianak\nGPIB Maranatha, Pontianak");
-    await admin.click("#cBulk button");
-    await admin.waitForSelector("#toast:has-text(\"6 ditambahkan\")");
-    check(await admin.locator("tbody tr").count() === 6, "Admin menempel 6 gereja sekaligus");
+    await admin.waitForSelector("#cAdd");
+    check(await admin.locator("#cAdd [name=name]").isVisible() && await admin.locator("#cAdd textarea").isHidden(), "Tambah gereja: satu form, bawaan '1 gereja'");
+    await admin.fill("#cAdd [name=name]", "GKII Jemaat Sungai Raya"); await admin.fill("#cAdd [name=city]", "Kubu Raya");
+    await admin.click("#cBtn"); await admin.waitForSelector("#toast:has-text(\"Gereja ditambahkan\")");
+    await admin.check("#cAdd [name=cmode][value=bulk]", { force: true });
+    check(await admin.locator("#cAdd textarea").isVisible() && await admin.locator("#cAdd [name=name]").isHidden(), "Pilih 'Banyak gereja': form berganti jadi kotak tempel");
+    await admin.fill("#cAdd textarea", "GKII Jemaat Sungai Raya, Kubu Raya\nGPdI Siloam, Pontianak\nGBI Rock Singkawang, Singkawang\nGKE Imanuel, Ketapang\nHKBP Pontianak, Pontianak\nGPIB Maranatha, Pontianak");
+    await admin.click("#cBtn");
+    await admin.waitForSelector("#toast:has-text(\"5 ditambahkan, 1 dilewati\")");
+    check(await admin.locator("tbody tr").count() === 6, "Admin menambah 1 gereja lalu menempel banyak sekaligus (yang sudah ada dilewati)");
     const cookie = (await adminCtx.cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
 
     await admin.goto(BASE + "/admin/#jadwal");
@@ -324,10 +330,40 @@ async function api(method, url, body, cookie) {
     await pr.pdf({ path: path.join(SHOTS, "contoh-idcard.pdf"), format: "A4", printBackground: true });
 
     // halaman admin lain terbuka tanpa error
-    for (const v of ["ringkasan", "peserta", "kehadiran", "galeri", "akun"]) {
+    for (const v of ["ringkasan", "peserta", "galeri", "akun"]) {
       await admin.goto(BASE + "/admin/#" + v); await admin.waitForTimeout(500);
-      if (v === "ringkasan" || v === "peserta" || v === "kehadiran") await admin.screenshot({ path: path.join(SHOTS, `admin-${v}.png`) });
+      if (v === "ringkasan" || v === "peserta") await admin.screenshot({ path: path.join(SHOTS, `admin-${v}.png`) });
     }
+    // Peserta: urutkan
+    await admin.goto(BASE + "/admin/#peserta"); await admin.waitForSelector("#pTable tbody tr");
+    const names = async () => admin.$$eval("#pTable tbody tr td:nth-child(2)", (t) => t.map((x) => x.firstChild.textContent.trim()));
+    await admin.selectOption("#pSort", "name:-1");
+    const zToA = await names();
+    await admin.selectOption("#pSort", "scans:-1");
+    const scansCol = await admin.$$eval("#pTable tbody tr td:nth-child(7)", (t) => t.map((x) => Number(x.textContent)));
+    await admin.click("th[data-sort=name]");
+    const aToZ = await names();
+    check(zToA.join() === [...zToA].sort((a, b) => b.localeCompare(a, "id")).join() && aToZ.join() === [...aToZ].sort((a, b) => a.localeCompare(b, "id")).join()
+      && scansCol.every((v, i) => i === 0 || scansCol[i - 1] >= v), "Peserta bisa diurutkan (nama Z–A, scan terbanyak, klik judul kolom)");
+    // Jadwal & kehadiran digabung
+    check(!(await admin.$("a[data-nav=kehadiran]")) && /kehadiran/i.test(await admin.textContent("a[data-nav=jadwal]")), "Menu Jadwal dan Kehadiran digabung");
+    await admin.goto(BASE + "/admin/#jadwal"); await admin.waitForSelector("[data-open]");
+    await admin.locator("tr[data-open]", { hasText: "Registrasi ulang" }).locator("td").nth(1).click();
+    await admin.waitForSelector("#aTable");
+    const hadirTxt = await admin.textContent(".tiles .tile");
+    check(/\/admin\/#jadwal\/\d+$/.test(admin.url()) && /hadir/.test(hadirTxt) && (await admin.locator("#aTable tbody tr").count()) > 0 && await admin.locator(".bar-row").count() > 0,
+      `Klik sesi membuka detail kehadiran (${hadirTxt.replace(/\s+/g, " ").trim()})`);
+    await admin.screenshot({ path: path.join(SHOTS, "admin-kehadiran.png"), fullPage: true });
+    await admin.goto(BASE + "/admin/#kehadiran"); await admin.waitForTimeout(400);
+    check(/#jadwal$/.test(admin.url()), "Alamat lama #kehadiran diarahkan ke Jadwal & kehadiran");
+    // Galeri: link Google Drive
+    await admin.goto(BASE + "/admin/#galeri"); await admin.waitForSelector("#driveF");
+    await admin.fill("#driveF [name=gallery_drive_url]", "https://drive.google.com/drive/folders/contoh123"); await admin.click("#driveF button");
+    await admin.waitForSelector("#toast:has-text(\"Link Google Drive disimpan\")");
+    const pg = await (await browser.newContext()).newPage();
+    await pg.goto(BASE + "/"); await pg.waitForSelector("#driveWrap:not([hidden])");
+    check(await pg.getAttribute("#driveLink", "href") === "https://drive.google.com/drive/folders/contoh123" && await pg.getAttribute("#driveLink", "target") === "_blank",
+      "Tombol 'Lihat semua foto' di landing membuka Google Drive di tab baru");
     check(true, "Semua halaman admin terbuka");
 
     // keamanan dasar

@@ -56,9 +56,13 @@ const ok = []; const check = (c, m) => { ok.push(!!c); console.log((c ? "✓ " :
   await scan.locator("#syncBtn").click();
   await p.waitForFunction(() => document.querySelector("#scanFrame").contentDocument.querySelector("#pendingN").textContent === "0", null, { timeout: 8000 });
   check(/diterima/.test(await p.locator("#logList").textContent()), "Sinkron masuk ke server (log)");
-  await admin.locator("a[data-nav=kehadiran]").click();
+  await admin.locator("a[data-nav=jadwal]").click();
+  await admin.locator("tr[data-open]").first().waitFor();
+  // buka sesi yang paling baru menerima scan dari HP petugas
+  const sid = await p.evaluate(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => /rpk.*demo|demo/i.test(k)) || "{}") || "{}"); const a = (d.attendance || []).filter((x) => x.user_id !== 3).pop(); return a ? a.session_id : null; });
+  if (sid) await admin.locator(`a[href="#jadwal/${sid}"]`).click(); else await admin.locator("a:has-text('Detail kehadiran')").first().click();
   await admin.locator("text=Petugas Pintu 1").first().waitFor();
-  check(true, "Admin melihat scan dari Petugas Pintu 1 di Kehadiran");
+  check(true, "Admin melihat scan dari Petugas Pintu 1 di detail kehadiran sesi");
   await p.screenshot({ path: path.join(shots, "5-kehadiran.png") });
   // approve menunggu lalu scan lagi
   await admin.locator("a[data-nav=pendaftaran]").click();

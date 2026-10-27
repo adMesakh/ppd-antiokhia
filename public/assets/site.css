@@ -318,3 +318,4 @@ body.no-player{padding-bottom:0}
 .prow.solo{grid-template-columns:minmax(0,1fr)}
 .prow.solo .meta{grid-column:1}
 @media (hover:none){.slide-btn{display:none}}
+.gallery-more{display:flex;justify-content:center;margin-top:22px}

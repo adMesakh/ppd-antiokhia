@@ -169,3 +169,20 @@ td.actions{text-align:right;white-space:nowrap}
 .music-now audio{height:36px;flex:1;min-width:220px}
 .lu-thumb{width:44px;height:44px;border-radius:50%;object-fit:cover;display:grid;place-content:center;background:var(--line);font-weight:700;color:var(--muted)}
 td .btn input[hidden]{display:none}
+/* pilihan radio bergaya tombol segmen */
+.radio-seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;background:var(--surface)}
+.radio-seg label{display:flex;align-items:center;padding:8px 14px;font:600 .86rem var(--body);cursor:pointer;color:var(--muted);position:relative}
+.radio-seg input{position:absolute;opacity:0;width:1px;height:1px}
+.radio-seg label:has(input:checked){background:var(--stage);color:#FFF}
+.radio-seg label:has(input:focus-visible){outline:3px solid var(--accent,#2563eb);outline-offset:-3px}
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{color:var(--ink)}
+th.sortable[aria-sort]::after{content:" ↑";font-size:.8em}
+th.sortable[aria-sort=descending]::after{content:" ↓"}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:rgba(0,0,0,.025)}
+.bars{display:grid;gap:8px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,1.4fr) 3fr auto;gap:10px;align-items:center;font-size:.9rem}
+.bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--stage)}
+label.inline{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-weight:600;font-size:.86rem;color:var(--muted)}

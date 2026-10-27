@@ -273,7 +273,16 @@
   // =====================================================================
   // PESERTA & QR
   // =====================================================================
-  let pState = { q: "", church: "", status: "lunas" };
+  let pState = { q: "", church: "", status: "lunas", sort: "name", dir: 1 };
+  const P_SORTS = {
+    name: { label: "Nama", get: (p) => p.name.toLowerCase() },
+    church: { label: "Gereja", get: (p) => p.church.toLowerCase() + "\u0000" + p.name.toLowerCase() },
+    role: { label: "Status", get: (p) => (p.role === "gembala" ? 0 : 1) + p.name.toLowerCase() },
+    gender: { label: "Jenis kelamin", get: (p) => p.gender + p.name.toLowerCase() },
+    reg: { label: "Pendaftaran", get: (p) => p.id },
+    scans: { label: "Scan", get: (p) => p.scans },
+  };
+  const SORT_PRESETS = [["name", 1, "Nama A–Z"], ["name", -1, "Nama Z–A"], ["church", 1, "Gereja A–Z"], ["role", 1, "Gembala dulu"], ["reg", -1, "Terbaru mendaftar"], ["reg", 1, "Terlama mendaftar"], ["scans", -1, "Scan terbanyak"], ["scans", 1, "Scan paling sedikit"]];
   VIEWS.peserta = async () => {
     const list = await churches();
     view.innerHTML = `
@@ -283,9 +292,11 @@
         <input type="search" id="pQ" placeholder="Cari nama atau kode" value="${esc(pState.q)}">
         <select id="pChurch">${churchOptions(list, pState.church, "Semua gereja")}</select>
         <select id="pStatus"><option value="lunas"${pState.status === "lunas" ? " selected" : ""}>Lunas</option><option value="menunggu"${pState.status === "menunggu" ? " selected" : ""}>Menunggu</option><option value=""${!pState.status ? " selected" : ""}>Semua status</option></select>
+        <label class="inline">Urutkan <select id="pSort">${SORT_PRESETS.map(([k, d, l]) => `<option value="${k}:${d}"${pState.sort === k && pState.dir === d ? " selected" : ""}>${l}</option>`).join("")}${SORT_PRESETS.some(([k, d]) => k === pState.sort && d === pState.dir) ? "" : `<option selected>${P_SORTS[pState.sort].label} ${pState.dir > 0 ? "↑" : "↓"}</option>`}</select></label>
         <span class="muted" id="pCount"></span>
       </div>
       <div id="pTable"></div>`;
+    $("#pSort").onchange = (e) => { const [k, d] = e.target.value.split(":"); if (!P_SORTS[k]) return; pState.sort = k; pState.dir = Number(d); renderP(); };
     let t;
     $("#pQ").oninput = (e) => { clearTimeout(t); t = setTimeout(() => { pState.q = e.target.value; loadP(); }, 250); };
     $("#pChurch").onchange = (e) => { pState.church = e.target.value; loadP(); };
@@ -300,10 +311,17 @@
   };
   async function loadP() {
     const q = new URLSearchParams(); if (pState.q) q.set("q", pState.q); if (pState.church) q.set("church_id", pState.church); if (pState.status) q.set("status", pState.status);
-    const list = await GET("/api/admin/participants?" + q);
+    pList = await GET("/api/admin/participants?" + q);
+    renderP();
+  }
+  let pList = [];
+  function renderP() {
+    const S = P_SORTS[pState.sort] || P_SORTS.name, dir = pState.dir;
+    const list = [...pList].sort((a, b) => { const x = S.get(a), y = S.get(b); return (x < y ? -1 : x > y ? 1 : 0) * dir || a.id - b.id; });
+    const th = (k, label) => `<th class="sortable" data-sort="${k}"${pState.sort === k ? ` aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""} title="Urutkan menurut ${label.toLowerCase()}">${label}</th>`;
     $("#pCount").textContent = `${list.length} peserta`;
     $("#printSel").textContent = "Cetak ID card";
-    $("#pTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Pilih semua"></th><th>Nama</th><th>Status</th><th>Gereja</th><th>Jenis kelamin</th><th>Pendaftaran</th><th>Scan</th><th></th></tr></thead><tbody>
+    $("#pTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Pilih semua"></th>${th("name", "Nama")}${th("role", "Status")}${th("church", "Gereja")}${th("gender", "Jenis kelamin")}${th("reg", "Pendaftaran")}${th("scans", "Scan")}<th></th></tr></thead><tbody>
       ${list.map((p) => `<tr><td>${p.status === "lunas" ? `<input type="checkbox" data-sel value="${p.id}" aria-label="Pilih ${esc(p.name)}">` : ""}</td>
         <td>${esc(p.name)}<span class="sub mono">${esc(p.code)}</span></td><td><span class="role ${p.role}">${ROLE[p.role]}</span></td><td>${esc(p.church)}</td>
         <td>${GENDER[p.gender] || "-"}</td><td><a href="#pendaftaran/${p.registration_id}" class="mono">${esc(p.registration_code)}</a> <span class="pill ${p.status}">${STATUS[p.status]}</span></td><td class="num">${p.scans}</td>
@@ -314,6 +332,14 @@
     $("#pTable").onchange = (e) => { if (e.target.matches("[data-sel]")) updSel(); };
     function updSel() { const n = $$("[data-sel]:checked").length; $("#printSel").textContent = n ? `Cetak ${n} ID card` : "Cetak ID card"; }
     $("#pTable").onclick = (e) => {
+      const h = e.target.closest("[data-sort]");
+      if (h) {
+        const k = h.dataset.sort;
+        if (pState.sort === k) pState.dir = -pState.dir; else { pState.sort = k; pState.dir = k === "scans" || k === "reg" ? -1 : 1; }
+        const o = $("#pSort"), v = `${pState.sort}:${pState.dir}`;
+        if ([...o.options].some((x) => x.value === v)) o.value = v; else { o.innerHTML += `<option selected>${P_SORTS[k].label} ${pState.dir > 0 ? "↑" : "↓"}</option>`; }
+        return renderP();
+      }
       const b = e.target.closest("[data-qr]"); if (!b) return;
       const p = list.find((x) => x.id === Number(b.dataset.qr));
       showQr(p);
@@ -333,24 +359,49 @@
   // =====================================================================
   // GEREJA
   // =====================================================================
+  let churchMode = "one";
   VIEWS.gereja = async () => {
     const list = await churches(true);
     view.innerHTML = `
       <div class="head"><div><h1>Gereja</h1><p class="muted">Daftar ini muncul sebagai pilihan di formulir pendaftaran. ${list.length} gereja.</p></div></div>
-      <div class="grid2">
-        <form class="card" id="cOne"><h3>Tambah satu gereja</h3>
-          <div class="form-grid"><label>Nama gereja<input name="name" placeholder="mis. GKII Jemaat Sungai Raya" required></label><label>Kabupaten / kota<input name="city" placeholder="mis. Kubu Raya"></label></div>
-          <div><button class="btn primary">Tambah</button></div></form>
-        <form class="card" id="cBulk"><h3>Tempel banyak sekaligus</h3>
-          <label>Satu gereja per baris, format <span class="mono">Nama, Kota</span><textarea name="bulk" placeholder="GKII Jemaat Sungai Raya, Kubu Raya&#10;GPdI Siloam, Pontianak"></textarea><span class="hint">Bisa disalin langsung dari Excel (kolom nama dan kota). Nama yang sudah ada dilewati.</span></label>
-          <div><button class="btn primary">Tambahkan semua</button></div></form>
-      </div>
+      <form class="card" id="cAdd">
+        <div class="card-head"><h3>Tambah gereja</h3>
+          <div class="radio-seg" role="radiogroup" aria-label="Jumlah gereja">
+            <label><input type="radio" name="cmode" value="one"${churchMode === "one" ? " checked" : ""}>1 gereja</label>
+            <label><input type="radio" name="cmode" value="bulk"${churchMode === "bulk" ? " checked" : ""}>Banyak gereja</label>
+          </div></div>
+        <div data-cm="one" class="form-grid"${churchMode === "one" ? "" : " hidden"}><label>Nama gereja<input name="name" placeholder="mis. GKII Jemaat Sungai Raya"></label><label>Kabupaten / kota<input name="city" placeholder="mis. Kubu Raya"></label></div>
+        <label data-cm="bulk"${churchMode === "bulk" ? "" : " hidden"}><span>Satu gereja per baris, format <span class="mono">Nama, Kota</span></span><textarea name="bulk" placeholder="GKII Jemaat Sungai Raya, Kubu Raya&#10;GPdI Siloam, Pontianak"></textarea><span class="hint">Bisa disalin langsung dari Excel (kolom nama dan kota). Nama yang sudah ada dilewati.</span></label>
+        <div><button class="btn primary" id="cBtn">${churchMode === "one" ? "Tambah gereja" : "Tambahkan semua"}</button></div>
+      </form>
       ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Gereja</th><th>Kota</th><th>Pendaftaran</th><th>Peserta lunas</th><th></th></tr></thead><tbody>
       ${list.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.city)}</td><td class="num">${c.registrations}</td><td class="num">${c.paid_participants}</td>
         <td class="actions"><button class="btn sm" data-edit="${c.id}">Ubah</button> <button class="btn sm danger" data-del="${c.id}" ${c.registrations ? "disabled title='Sudah punya pendaftaran'" : ""}>Hapus</button></td></tr>`).join("")}
       </tbody></table></div>` : `<div class="card empty">Belum ada gereja. Tambahkan di atas supaya formulir pendaftaran bisa dipakai.</div>`}`;
-    $("#cOne").onsubmit = async (e) => { e.preventDefault(); try { const r = await POST("/api/admin/churches", Object.fromEntries(new FormData(e.target))); toast(r.added ? "Gereja ditambahkan" : "Nama sudah ada"); VIEWS.gereja(); } catch (x) { fail(x); } };
-    $("#cBulk").onsubmit = async (e) => { e.preventDefault(); try { const r = await POST("/api/admin/churches", { bulk: new FormData(e.target).get("bulk") }); toast(`${r.added} ditambahkan, ${r.skipped} dilewati`); VIEWS.gereja(); } catch (x) { fail(x); } };
+    const cf = $("#cAdd");
+    cf.onchange = (e) => {
+      if (e.target.name !== "cmode") return;
+      churchMode = e.target.value;
+      $$("[data-cm]", cf).forEach((el) => (el.hidden = el.dataset.cm !== churchMode));
+      $("#cBtn").textContent = churchMode === "one" ? "Tambah gereja" : "Tambahkan semua";
+      $(churchMode === "one" ? "[name=name]" : "[name=bulk]", cf).focus();
+    };
+    cf.onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(cf);
+      try {
+        if (churchMode === "one") {
+          if (!f.get("name").trim()) return toast("Isi nama gereja.", true);
+          const r = await POST("/api/admin/churches", { name: f.get("name"), city: f.get("city") });
+          toast(r.added ? "Gereja ditambahkan" : "Nama sudah ada");
+        } else {
+          if (!f.get("bulk").trim()) return toast("Tempel daftar gereja dulu.", true);
+          const r = await POST("/api/admin/churches", { bulk: f.get("bulk") });
+          toast(`${r.added} ditambahkan, ${r.skipped} dilewati`);
+        }
+        VIEWS.gereja();
+      } catch (x) { fail(x); }
+    };
     view.onclick = async (e) => {
       const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]");
       if (ed) {
@@ -369,28 +420,80 @@
   // =====================================================================
   // JADWAL
   // =====================================================================
-  VIEWS.jadwal = async () => {
+  VIEWS.jadwal = async (arg) => {
+    if (arg) return sessionDetail(Number(arg));
     const list = await sessions(true);
     const days = [...new Set(list.map((s) => s.day))].sort((a, b) => a - b);
     view.innerHTML = `
-      <div class="head"><div><h1>Jadwal sesi</h1><p class="muted">Sesi di sini yang dipilih petugas scanner. Jenis <b>Seminar</b> dihitung untuk nominasi gereja paling aktif; <b>Check-in</b> untuk registrasi ulang dan kehadiran umum.</p></div>
-        <div class="head-actions"><button class="btn primary" id="newS">+ Sesi baru</button></div></div>
-      ${days.length ? days.map((d) => `<div class="daygroup"><h3>Hari ${d}</h3><div class="table-wrap"><table><thead><tr><th>Jam</th><th>Sesi</th><th>Jenis</th><th>Lokasi</th><th>Pembicara</th><th>Scan</th><th></th></tr></thead><tbody>
-        ${list.filter((s) => s.day === d).map((s) => `<tr><td class="num">${esc(s.starts_at || "—")}${s.ends_at ? "–" + esc(s.ends_at) : ""}</td><td><b>${esc(s.title)}</b></td><td><span class="pill ${s.kind}">${KIND[s.kind]}</span></td><td>${esc(s.location)}</td><td>${esc(s.speaker)}</td><td class="num">${s.scans}</td>
-          <td class="actions"><button class="btn sm" data-edit="${s.id}">Ubah</button> <button class="btn sm danger" data-del="${s.id}">Hapus</button></td></tr>`).join("")}
+      <div class="head"><div><h1>Jadwal &amp; kehadiran</h1><p class="muted">Sesi di sini yang dipilih petugas scanner. Klik sebuah sesi untuk melihat siapa saja yang hadir. Jenis <b>Seminar</b> dihitung untuk nominasi gereja paling aktif; <b>Check-in</b> untuk registrasi ulang.</p></div>
+        <div class="head-actions"><a class="btn" href="/api/admin/export/attendance.csv">Unduh CSV kehadiran</a><button class="btn" id="addA">+ Catat manual</button><button class="btn primary" id="newS">+ Sesi baru</button></div></div>
+      ${days.length ? days.map((d) => `<div class="daygroup"><h3>Hari ${d}</h3><div class="table-wrap"><table><thead><tr><th>Jam</th><th>Sesi</th><th>Jenis</th><th>Lokasi</th><th>Pembicara</th><th>Hadir</th><th></th></tr></thead><tbody>
+        ${list.filter((s) => s.day === d).map((s) => `<tr class="clickable" data-open="${s.id}"><td class="num">${esc(s.starts_at || "—")}${s.ends_at ? "–" + esc(s.ends_at) : ""}</td><td><b>${esc(s.title)}</b></td><td><span class="pill ${s.kind}">${KIND[s.kind]}</span></td><td>${esc(s.location)}</td><td>${esc(s.speaker)}</td><td class="num"><b>${s.scans}</b></td>
+          <td class="actions"><a class="btn sm primary" href="#jadwal/${s.id}">Detail kehadiran</a> <button class="btn sm" data-edit="${s.id}">Ubah</button> <button class="btn sm danger" data-del="${s.id}">Hapus</button></td></tr>`).join("")}
         </tbody></table></div></div>`).join("") : `<div class="card empty">Belum ada sesi. Tambahkan minimal satu sesi Check-in (registrasi ulang) dan sesi-sesi Seminar.</div>`}
-      <p class="muted">Setiap kali jadwal berubah, petugas scanner perlu menekan <b>Unduh ulang data</b> saat ada koneksi.</p>`;
+      <p class="muted">Data kehadiran masuk setelah HP scanner tersinkron. Setiap kali jadwal berubah, petugas scanner perlu menekan <b>Unduh ulang data</b> saat ada koneksi.</p>`;
     $("#newS").onclick = () => sessionForm();
+    $("#addA").onclick = () => manualAttend(list, null, () => VIEWS.jadwal());
     view.onclick = async (e) => {
       const ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]");
-      if (ed) sessionForm(list.find((s) => s.id === Number(ed.dataset.edit)));
+      if (ed) return sessionForm(list.find((s) => s.id === Number(ed.dataset.edit)));
       if (del) {
         const s = list.find((x) => x.id === Number(del.dataset.del));
         if (!(await confirmBox("Hapus sesi?", s.scans ? `Sesi ini sudah punya ${s.scans} data scan yang ikut terhapus.` : "Sesi ini akan dihapus.", "Hapus"))) return;
         try { await DEL(`/api/admin/sessions/${s.id}?force=1`); toast("Sesi dihapus"); VIEWS.jadwal(); } catch (x) { fail(x); }
+        return;
       }
+      const row = e.target.closest("[data-open]");
+      if (row && !e.target.closest("a,button")) location.hash = "#jadwal/" + row.dataset.open;
     };
   };
+  // Lama: menu Kehadiran sudah digabung ke Jadwal
+  VIEWS.kehadiran = async () => { location.replace("#jadwal"); };
+
+  let aChurch = "";
+  async function sessionDetail(id) {
+    const [ss, cs] = await Promise.all([sessions(true), churches(true)]);
+    const s = ss.find((x) => x.id === id);
+    if (!s) { view.innerHTML = `<div class="card empty">Sesi tidak ditemukan. <a href="#jadwal">Kembali ke jadwal</a></div>`; return; }
+    const att = await GET("/api/admin/attendance?session_id=" + id);
+    const paidTotal = cs.reduce((n, c) => n + c.paid_participants, 0);
+    const people = new Set(att.map((a) => a.code)).size;
+    const pct = paidTotal ? Math.round((people / paidTotal) * 100) : 0;
+    const byChurch = cs.filter((c) => c.paid_participants).map((c) => ({ c, n: att.filter((a) => a.church === c.name).length }))
+      .sort((a, b) => b.n / b.c.paid_participants - a.n / a.c.paid_participants || b.n - a.n);
+    const last = att[0]?.scanned_at;
+    view.innerHTML = `
+      <p><a href="#jadwal" class="muted">← Semua sesi</a></p>
+      <div class="head"><div><h1>${esc(s.title)}</h1><p class="muted">Hari ${s.day}${s.starts_at ? " · " + esc(s.starts_at) + (s.ends_at ? "–" + esc(s.ends_at) : "") : ""}${s.location ? " · " + esc(s.location) : ""}${s.speaker ? " · " + esc(s.speaker) : ""} · <span class="pill ${s.kind}">${KIND[s.kind]}</span></p></div>
+        <div class="head-actions"><button class="btn" id="editS">Ubah sesi</button><button class="btn primary" id="addA">+ Catat manual</button></div></div>
+      <div class="tiles">
+        <div class="tile"><b>${people}<span style="font-size:1.2rem;color:var(--muted)"> / ${paidTotal}</span></b><span>peserta hadir</span><small>${pct}% dari peserta lunas</small></div>
+        <div class="tile"><b>${byChurch.filter((x) => x.n).length}<span style="font-size:1.2rem;color:var(--muted)"> / ${byChurch.length}</span></b><span>gereja hadir</span></div>
+        <div class="tile"><b style="font-size:1.4rem">${last ? fmtTime(last) : "—"}</b><span>scan terakhir masuk</span></div>
+      </div>
+      ${byChurch.length ? `<div class="card"><h3>Per gereja</h3><div class="bars">${byChurch.map(({ c, n }) => `<div class="bar-row"><span>${esc(c.name)}</span><div class="bar"><i style="width:${Math.round((n / c.paid_participants) * 100)}%"></i></div><span class="num muted">${n} / ${c.paid_participants}</span></div>`).join("")}</div></div>` : ""}
+      <div class="toolbar"><select id="aC">${churchOptions(cs, aChurch, "Semua gereja")}</select><span class="muted" id="aCount"></span></div>
+      <div id="aTable"></div>`;
+    $("#editS").onclick = () => sessionForm(s);
+    $("#addA").onclick = () => manualAttend(ss, s.id, () => sessionDetail(id));
+    $("#aC").onchange = (e) => { aChurch = e.target.value; drawA(); };
+    const M = { qr: "QR", manual: "Cari nama", kode: "Ketik kode", admin: "Admin" };
+    function drawA() {
+      const cName = aChurch ? (cs.find((c) => String(c.id) === String(aChurch)) || {}).name : null;
+      const list = cName ? att.filter((a) => a.church === cName) : att;
+      $("#aCount").textContent = `${list.length} hadir`;
+      $("#aTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th>Waktu scan</th><th>Peserta</th><th>Gereja</th><th>Cara</th><th>Petugas</th><th>Masuk server</th><th></th></tr></thead><tbody>
+        ${list.map((a) => `<tr><td>${fmtTime(a.scanned_at)}</td><td>${esc(a.name)}<span class="sub mono">${esc(a.code)}</span></td><td>${esc(a.church)}</td>
+          <td>${M[a.method] || a.method}</td><td>${esc(a.scanner || "")}<span class="sub">${esc(a.device_id)}</span></td><td>${fmtTime(a.received_at)}</td><td class="actions"><button class="btn sm danger" data-del="${a.id}">Hapus</button></td></tr>`).join("")}
+        </tbody></table></div>` : `<div class="card empty">Belum ada yang tercatat hadir${aChurch ? " dari gereja ini" : " di sesi ini"}.</div>`;
+    }
+    drawA();
+    $("#aTable").onclick = async (e) => {
+      const d = e.target.closest("[data-del]"); if (!d) return;
+      if (!(await confirmBox("Hapus data scan?", "Gunakan ini untuk scan yang salah sesi atau salah orang.", "Hapus"))) return;
+      try { await DEL(`/api/admin/attendance/${d.dataset.del}`); toast("Dihapus"); sessionDetail(id); } catch (x) { fail(x); }
+    };
+  }
   function sessionForm(s) {
     const body = openDialog(`<div class="dlg-head"><h2>${s ? "Ubah sesi" : "Sesi baru"}</h2><button class="btn ghost sm" data-close>✕</button></div>
       <form id="sf" class="form-grid">
@@ -406,49 +509,14 @@
     $("#sf", body).onsubmit = async (e) => {
       e.preventDefault();
       const v = Object.fromEntries(new FormData(e.target)); v.day = Number(v.day);
-      try { s ? await PUT(`/api/admin/sessions/${s.id}`, v) : await POST("/api/admin/sessions", v); toast("Tersimpan"); closeDialog(); VIEWS.jadwal(); } catch (x) { fail(x); }
+      try { s ? await PUT(`/api/admin/sessions/${s.id}`, v) : await POST("/api/admin/sessions", v); toast("Tersimpan"); closeDialog(); route(); } catch (x) { fail(x); }
     };
   }
 
-  // =====================================================================
-  // KEHADIRAN
-  // =====================================================================
-  let aState = { session: "", church: "" };
-  VIEWS.kehadiran = async () => {
-    const [ss, cs] = await Promise.all([sessions(true), churches()]);
-    view.innerHTML = `
-      <div class="head"><div><h1>Kehadiran</h1><p class="muted">Data masuk setelah HP scanner tersinkron. Hapus baris yang salah scan.</p></div>
-        <div class="head-actions"><a class="btn" href="/api/admin/export/attendance.csv">Unduh CSV</a><button class="btn primary" id="addA">+ Catat manual</button></div></div>
-      <div class="toolbar">
-        <select id="aS"><option value="">Semua sesi</option>${ss.map((s) => `<option value="${s.id}"${String(aState.session) === String(s.id) ? " selected" : ""}>Hari ${s.day} · ${esc(s.title)}</option>`).join("")}</select>
-        <select id="aC">${churchOptions(cs, aState.church, "Semua gereja")}</select>
-        <span class="muted" id="aCount"></span>
-      </div>
-      <div id="aTable"></div>`;
-    $("#aS").onchange = (e) => { aState.session = e.target.value; loadA(); };
-    $("#aC").onchange = (e) => { aState.church = e.target.value; loadA(); };
-    $("#addA").onclick = () => manualAttend(ss);
-    await loadA();
-  };
-  async function loadA() {
-    const q = new URLSearchParams(); if (aState.session) q.set("session_id", aState.session); if (aState.church) q.set("church_id", aState.church);
-    const list = await GET("/api/admin/attendance?" + q);
-    $("#aCount").textContent = `${list.length} scan`;
-    const M = { qr: "QR", manual: "Cari nama", kode: "Ketik kode", admin: "Admin" };
-    $("#aTable").innerHTML = list.length ? `<div class="table-wrap"><table><thead><tr><th>Waktu scan</th><th>Peserta</th><th>Gereja</th><th>Sesi</th><th>Cara</th><th>Petugas</th><th>Masuk server</th><th></th></tr></thead><tbody>
-      ${list.map((a) => `<tr><td>${fmtTime(a.scanned_at)}</td><td>${esc(a.name)}<span class="sub mono">${esc(a.code)}</span></td><td>${esc(a.church)}</td><td>${esc(a.session)} <span class="pill ${a.kind}">${KIND[a.kind]}</span></td>
-        <td>${M[a.method] || a.method}</td><td>${esc(a.scanner || "")}<span class="sub">${esc(a.device_id)}</span></td><td>${fmtTime(a.received_at)}</td><td class="actions"><button class="btn sm danger" data-del="${a.id}">Hapus</button></td></tr>`).join("")}
-      </tbody></table></div>` : `<div class="card empty">Belum ada data kehadiran${aState.session || aState.church ? " untuk filter ini" : ""}.</div>`;
-    $("#aTable").onclick = async (e) => {
-      const d = e.target.closest("[data-del]"); if (!d) return;
-      if (!(await confirmBox("Hapus data scan?", "Gunakan ini untuk scan yang salah sesi atau salah orang.", "Hapus"))) return;
-      try { await DEL(`/api/admin/attendance/${d.dataset.del}`); toast("Dihapus"); loadA(); } catch (x) { fail(x); }
-    };
-  }
-  async function manualAttend(ss) {
+  async function manualAttend(ss, sessionId, after) {
     const body = openDialog(`<div class="dlg-head"><h2>Catat kehadiran manual</h2><button class="btn ghost sm" data-close>✕</button></div>
       <form id="mf" style="display:grid;gap:12px">
-        <label>Sesi<select name="session_id" required>${ss.map((s) => `<option value="${s.id}">Hari ${s.day} · ${esc(s.title)}</option>`).join("")}</select></label>
+        <label>Sesi<select name="session_id" required>${ss.map((s) => `<option value="${s.id}"${s.id === sessionId ? " selected" : ""}>Hari ${s.day} · ${esc(s.title)}</option>`).join("")}</select></label>
         <label>Cari peserta<input id="mq" placeholder="Ketik nama atau kode" autocomplete="off"></label>
         <div id="mres" style="display:grid;gap:6px;max-height:260px;overflow:auto"></div>
       </form>`, { narrow: true });
@@ -464,7 +532,7 @@
       const b = e.target.closest("[data-p]"); if (!b) return;
       try {
         const r = await POST("/api/admin/attendance", { participant_id: Number(b.dataset.p), session_id: Number($("[name=session_id]", body).value) });
-        toast(r.added ? "Kehadiran dicatat" : "Sudah tercatat sebelumnya"); b.disabled = true; if (location.hash === "#kehadiran") loadA();
+        toast(r.added ? "Kehadiran dicatat" : "Sudah tercatat sebelumnya"); b.disabled = true; if (after) after();
       } catch (x) { fail(x); }
     };
   }
@@ -520,9 +588,14 @@
   // GALERI
   // =====================================================================
   VIEWS.galeri = async () => {
-    const list = await GET("/api/admin/photos");
+    const [list, st] = await Promise.all([GET("/api/admin/photos"), GET("/api/admin/settings")]);
     view.innerHTML = `
       <div class="head"><div><h1>Galeri foto</h1><p class="muted">Foto tampil di website bagian Dokumentasi. Foto otomatis diperkecil sebelum diunggah supaya hemat kuota.</p></div></div>
+      <form class="card" id="driveF">
+        <div><h3>Semua foto di Google Drive</h3><p class="muted">Tombol <b>Lihat semua foto</b> muncul di bawah slider dan membuka folder ini di tab baru. Atur folder Drive ke "Siapa saja yang memiliki link dapat melihat".</p></div>
+        <div class="toolbar"><input name="gallery_drive_url" type="url" value="${esc(st.gallery_drive_url)}" placeholder="https://drive.google.com/drive/folders/…" style="flex:1;min-width:240px">
+          <button class="btn primary">Simpan link</button>${st.gallery_drive_url ? `<a class="btn" href="${esc(st.gallery_drive_url)}" target="_blank" rel="noopener">Buka</a>` : ""}</div>
+      </form>
       <label class="drop" id="drop"><b>Pilih atau seret foto ke sini</b><span>JPG, PNG, atau WebP. Bisa banyak sekaligus.</span><input type="file" id="files" accept="image/jpeg,image/png,image/webp" multiple style="max-width:260px"></label>
       <div id="upStatus" class="muted"></div>
       ${list.length ? `<div class="photos">${list.map((p) => `<div class="photo"><img src="${esc(p.url)}" alt="${esc(p.caption)}" loading="lazy">
@@ -533,6 +606,11 @@
     drop.ondragleave = () => drop.classList.remove("over");
     drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); };
     $("#files").onchange = (e) => upload([...e.target.files]);
+    $("#driveF").onsubmit = async (e) => {
+      e.preventDefault();
+      const u = new FormData(e.target).get("gallery_drive_url").trim();
+      try { await PUT("/api/admin/settings", { gallery_drive_url: u }); toast(u ? "Link Google Drive disimpan" : "Link dihapus"); VIEWS.galeri(); } catch (x) { fail(x); }
+    };
     view.onchange = async (e) => { const c = e.target.closest("[data-cap]"); if (!c) return; try { await PUT(`/api/admin/photos/${c.dataset.cap}`, { caption: c.value }); toast("Keterangan disimpan"); } catch (x) { fail(x); } };
     view.onclick = async (e) => {
       const d = e.target.closest("[data-del]"); if (!d) return;

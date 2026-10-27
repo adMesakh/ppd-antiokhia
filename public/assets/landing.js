@@ -57,7 +57,7 @@
     renderTabs();
     renderSessions();
     renderResults(data.results);
-    renderGallery(data.photos);
+    renderGallery(data.photos, S.gallery_drive_url);
     if (!S.registration_open) { $("#feeLine").textContent = "Pendaftaran sedang ditutup. Hubungi panitia untuk informasi."; }
     tick(); setInterval(tick, 1000);
     if (window.StageArt) window.StageArt.attach();
@@ -187,9 +187,12 @@
   }
 
   // ---------- Galeri ----------
-  function renderGallery(photos) {
-    if (!photos.length) return;
+  function renderGallery(photos, drive) {
+    if (drive) { $("#driveLink").href = drive; $("#driveWrap").hidden = false; }
+    if (!photos.length && !drive) return;
     $("#galeri").hidden = false;
+    $("#slider").hidden = !photos.length;
+    if (!photos.length) return;
     $("#gallery").innerHTML = photos.map((p) => `<figure><img src="${esc(p.url)}" alt="${esc(p.caption || "Dokumentasi retreat")}" loading="lazy" decoding="async"${p.width && p.height ? ` width="${p.width}" height="${p.height}"` : ""}>${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ""}</figure>`).join("");
     startSlider();
   }

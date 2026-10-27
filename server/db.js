@@ -231,6 +231,7 @@ const DEFAULT_SETTINGS = {
   min_participants_for_activity: 5,
   music_url: "",
   music_title: "",
+  gallery_drive_url: "",
   spotify_url: "https://open.spotify.com/search/NDC%20Worship",
   code_prefix: "PPD27",
 };

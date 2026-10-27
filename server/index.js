@@ -51,7 +51,7 @@ app.get("/api/ping", (req, res) => {
 function publicSettings(s) {
   const keys = ["event_name", "title_line1", "title_line2", "tagline", "start_at", "end_at", "dates_label", "location",
     "est_churches", "est_participants", "fee_per_person", "payment_note", "contact", "registration_open",
-    "results_published", "music_url", "music_title", "spotify_url"];
+    "results_published", "music_url", "music_title", "spotify_url", "gallery_drive_url"];
   return Object.fromEntries(keys.map((k) => [k, s[k]]));
 }
 
@@ -265,6 +265,11 @@ A.put("/settings", jsonSmall, async (req, res) => {
     patch[k] = Math.round(n);
   }
   for (const k of ["registration_open", "results_published"]) if (k in b) patch[k] = !!b[k];
+  if ("gallery_drive_url" in b) {
+    const u = cleanText(b.gallery_drive_url, 400);
+    if (u && !/^https:\/\/[^\s/]+\.[^\s]+$/.test(u)) return bad(res, "Link Google Drive harus diawali https://");
+    patch.gallery_drive_url = u;
+  }
   if (patch.code_prefix !== undefined) patch.code_prefix = patch.code_prefix.toUpperCase().replace(/[^A-Z0-9]/g, "") || "RP";
   res.json(await saveSettings(patch));
 });
