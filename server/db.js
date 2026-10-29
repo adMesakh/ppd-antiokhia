@@ -119,6 +119,9 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS topic TEXT NOT NULL DEFAULT '';
 ALTER TABLE lineup ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
+-- Catatan pembayaran bawaan lama menyebut "kode pendaftaran"; sekarang cukup nomor WhatsApp
+UPDATE settings SET value = '"Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar."'
+  WHERE key = 'payment_note' AND value = '"Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar."';
 -- Usia tidak lagi diminta saat pendaftaran
 ALTER TABLE participants ALTER COLUMN age DROP NOT NULL;
 -- pengunjung website: ID acak per perangkat (tanpa IP / data pribadi), satu baris per perangkat per hari (WIB)
@@ -230,7 +233,7 @@ const DEFAULT_SETTINGS = {
   est_churches: 40,
   est_participants: 0,
   fee_per_person: 0,
-  payment_note: "Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar.",
+  payment_note: "Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar.",
   contact: "",
   registration_open: true,
   results_published: false,

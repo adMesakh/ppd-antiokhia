@@ -39,7 +39,7 @@
           <dt>Pendaftar</dt><dd>${esc(d.coordinator)} · ${esc(d.phone)}</dd>
           <dt>Peserta</dt><dd>${d.participants.length} orang${d.total ? " · total " + rupiah(d.total) : ""}</dd>
         </dl>
-        ${st === "menunggu" ? `<div class="msg info">${esc(d.payment_note)} Kode: <b>${esc(d.code)}</b>. Halaman ini berubah otomatis setelah admin mengonfirmasi.</div>` : ""}
+        ${st === "menunggu" ? `<div class="msg info">${esc(d.payment_note)} Halaman ini berubah otomatis setelah admin mengonfirmasi.</div>` : ""}
         ${st === "lunas" ? `<p class="fine">Pembayaran sudah dikonfirmasi. Pass di bawah ini akan dicetak panitia dan dibagikan saat registrasi ulang. Peserta tidak perlu membawa HP.</p>` : ""}
         <div style="display:grid;gap:6px">
           <span class="eyebrow">Tautan status (simpan atau kirim ke grup gereja)</span>
@@ -55,7 +55,7 @@
               <div class="evt"><img src="/assets/logo.png" alt="">PPD Antiokhia</div>
             </div>`).join("")}</div>`
         : `<div class="panel"><h3>Daftar peserta</h3><ol class="plist">${d.participants.map((p) => `<li>${esc(p.name)} <span class="fine">· ${esc(ROLE[p.role])} · ${p.gender === "P" ? "Perempuan" : "Laki-laki"}</span></li>`).join("")}</ol>
-           <p class="fine">Ada data yang salah? Hubungi panitia dengan menyebutkan kode pendaftaran.</p></div>`}`;
+           <p class="fine">Ada data yang salah? Hubungi panitia dengan menyebutkan nomor WhatsApp-mu.</p></div>`}`;
     $("#copyBtn").onclick = async () => {
       const inp = $("#lnk");
       try { await navigator.clipboard.writeText(inp.value); $("#copyBtn").textContent = "Tersalin"; }

@@ -37,7 +37,7 @@
     <div class="section-head">
       <span class="tape">Pendaftaran</span>
       <h2>Daftar <b>retreat</b></h2>
-      <p class="lede">Daftar untuk dirimu sendiri, atau sekaligus untuk rombongan dari gerejamu. Setelah terkirim, kamu mendapat kode pendaftaran untuk pembayaran tunai ke panitia.</p>
+      <p class="lede">Daftar untuk dirimu sendiri, atau sekaligus untuk rombongan dari gerejamu. Setelah terkirim, bayar tunai ke panitia dengan menyebutkan nomor WhatsApp-mu.</p>
     </div>
     <div class="reg-layout">
       <div>
@@ -86,7 +86,7 @@
           <h3>Biaya &amp; pembayaran</h3>
           <dl class="kv"><dt>Per peserta</dt><dd id="feeText">Menyusul</dd><dt>Cara bayar</dt><dd>Tunai</dd></dl>
           <p class="fine" id="contact" hidden></p>
-          <p class="fine" id="payNote">Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar.</p>
+          <p class="fine" id="payNote">Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar.</p>
         </div>
       </aside>
     </div>
@@ -99,15 +99,15 @@
       <div style="display:grid;gap:10px;justify-items:start">
         <span class="tape">Cek status</span>
         <h3>Sudah mendaftar?</h3>
-        <p class="fine">Masukkan kode pendaftaran dan nomor WhatsApp yang dipakai saat mendaftar untuk melihat status pembayaran dan pass peserta.</p>
+        <p class="fine">Masukkan nomor WhatsApp yang dipakai saat mendaftar.</p>
       </div>
       <div id="myRegs" class="fine" hidden></div>
       <form id="lookupForm" class="grid2" novalidate>
-        <label for="lkCode">Kode pendaftaran<input id="lkCode" placeholder="PPD27-XXXXX" autocapitalize="characters" autocomplete="off"></label>
-        <label for="lkPhone">Nomor WhatsApp<input id="lkPhone" inputmode="tel" placeholder="08…"></label>
+        <label for="lkPhone">Nomor WhatsApp<input id="lkPhone" inputmode="tel" autocomplete="tel" placeholder="08…"></label>
         <div class="msg err" id="lkErr" role="alert" hidden style="grid-column:1/-1"></div>
-        <div><button type="submit" class="btn btn-sun">Lihat status</button></div>
+        <div style="align-self:end"><button type="submit" class="btn btn-sun">Lihat status</button></div>
       </form>
+      <div id="lkList" class="lk-list" hidden></div>
   </div>
 </section>
 </main>

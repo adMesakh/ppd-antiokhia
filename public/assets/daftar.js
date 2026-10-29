@@ -132,12 +132,17 @@
   }
   $("#lookupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const err = $("#lkErr"); err.hidden = true;
+    const err = $("#lkErr"); err.hidden = true; $("#lkList").hidden = true;
     try {
-      const res = await fetch("/api/status/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: $("#lkCode").value, phone: $("#lkPhone").value }) });
+      const res = await fetch("/api/status/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: $("#lkPhone").value }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      go("/status.html?t=" + encodeURIComponent(data.status_token));
+      const list = data.registrations || [];
+      if (list.length <= 1) return go("/status.html?t=" + encodeURIComponent(data.status_token));
+      // satu nomor bisa dipakai untuk beberapa pendaftaran: tampilkan pilihannya
+      const box = $("#lkList"); box.hidden = false;
+      box.innerHTML = `<p class="fine">Ada ${list.length} pendaftaran dengan nomor ini:</p>` + list.map((r) => `<a class="lk-item" href="/status.html?t=${encodeURIComponent(r.status_token)}">
+        <b>${esc(r.church)}</b><span>${r.n} peserta · ${r.status === "lunas" ? "Lunas" : "Menunggu pembayaran"}</span></a>`).join("");
     } catch (x) { err.textContent = x.message === "Failed to fetch" ? "Tidak ada koneksi." : x.message; err.hidden = false; }
   });
 })();

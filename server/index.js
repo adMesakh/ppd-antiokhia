@@ -170,12 +170,16 @@ app.get("/api/status/:token", h(async (req, res) => {
   res.json({ ...(await registrationView(reg, { includeQr: true })), payment_note: (await getSettings()).payment_note });
 }));
 
-app.post("/api/status/lookup", rateLimit({ name: "cek", windowMs: 10 * 60e3, max: 20 }), jsonSmall, h(async (req, res) => {
-  const code = cleanText(req.body?.code, 20).toUpperCase();
+// Cek status cukup dengan nomor WhatsApp yang dipakai saat mendaftar (lengkap). Dibatasi ketat per IP
+// supaya tidak bisa dipakai menebak-nebak nomor orang lain.
+app.post("/api/status/lookup", rateLimit({ name: "cek", windowMs: 10 * 60e3, max: 10, message: "Terlalu banyak percobaan. Tunggu 10 menit lalu coba lagi." }), jsonSmall, h(async (req, res) => {
   const phone = normalizePhone(req.body?.phone);
-  const reg = phone && await one("SELECT status_token FROM registrations WHERE code = $1 AND phone = $2", [code, phone]);
-  if (!reg) return bad(res, "Kode pendaftaran dan nomor WhatsApp tidak cocok.", 404);
-  res.json({ status_token: reg.status_token });
+  if (!phone) return bad(res, "Nomor WhatsApp tidak valid. Gunakan format 08xxxxxxxxxx.");
+  const regs = await many(`SELECT r.status_token, r.code, r.status, r.created_at, c.name AS church,
+      (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
+    FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.phone = $1 AND r.status != 'batal' ORDER BY r.created_at DESC LIMIT 10`, [phone]);
+  if (!regs.length) return bad(res, "Belum ada pendaftaran dengan nomor ini. Pastikan nomornya sama dengan saat mendaftar.", 404);
+  res.json({ status_token: regs[0].status_token, registrations: regs });
 }));
 
 // Gambar QR. Hanya untuk peserta yang pendaftarannya sudah lunas.

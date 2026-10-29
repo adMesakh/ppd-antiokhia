@@ -320,3 +320,7 @@ body.no-player{padding-bottom:0}
 @media (hover:none){.slide-btn{display:none}}
 .gallery-more{display:flex;justify-content:center;margin-top:22px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.lk-list{display:grid;gap:8px;margin-top:14px}
+.lk-item{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:var(--r-md);background:rgba(255,255,255,.04);border:1px solid var(--line);color:inherit;text-decoration:none}
+.lk-item:hover{border-color:var(--orange)}
+.lk-item span{color:var(--muted);font-weight:600}

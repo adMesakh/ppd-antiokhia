@@ -190,9 +190,17 @@ async function api(method, url, body, cookie) {
 
     // cek status lewat formulir (kode + WA)
     await pub.goto(BASE + "/daftar.html#cek-status");
-    await pub.fill("#lkCode", regCode.toLowerCase()); await pub.fill("#lkPhone", "+62 812-3456-7890");
+    check(!(await pub.$("#lkCode")), "Cek status tidak lagi meminta kode pendaftaran");
+    await pub.fill("#lkPhone", "+62 812-3456-7890");
     await pub.click("#lookupForm button"); await pub.waitForURL(/status\.html/);
-    check(true, "Cek status dengan kode + nomor WA berhasil");
+    check(new URL(pub.url()).searchParams.get("t") && /PPD27-/.test(await pub.textContent(".code")), "Cek status cukup dengan nomor WA (format +62 juga bisa)");
+    // satu nomor dipakai dua kali: muncul pilihan
+    await api("POST", "/api/registrations", { church_id: Number(churchVal), phone: "081234567890", mode: "sendiri", participants: [{ name: "Tambahan Satu", role: "peserta", gender: "P" }] });
+    await pub.goto(BASE + "/daftar.html#cek-status"); await pub.fill("#lkPhone", "081234567890"); await pub.click("#lookupForm button");
+    await pub.waitForSelector("#lkList:not([hidden]) .lk-item");
+    check(await pub.locator(".lk-item").count() === 2, "Nomor dengan 2 pendaftaran menampilkan pilihan pendaftaran");
+    await pub.locator(".lk-item", { hasText: "3 peserta" }).click(); await pub.waitForURL(/status\.html/);
+    check((await api("POST", "/api/status/lookup", { phone: "089999999999" })).status === 404, "Nomor yang belum terdaftar ditolak dengan pesan jelas");
 
     // ---------- Admin menandai lunas ----------
     await admin.goto(BASE + "/admin/#pendaftaran");
@@ -436,7 +444,7 @@ async function api(method, url, body, cookie) {
     check(await withKey("/api/wallboard") === 401 && (await api("POST", "/api/admin/wallboard-key", {}, cookie)).data.key !== wk, "Link layar TV bisa dicabut dan dibuat ulang");
 
     // ---------- perlindungan data & keamanan tambahan ----------
-    const st0 = await api("GET", "/api/status/" + (await api("POST", "/api/status/lookup", { code: regCode, phone: "081234567890" })).data.status_token);
+    const st0 = await api("GET", "/api/status/" + (await api("POST", "/api/status/lookup", { phone: "081234567890" })).data.status_token);
     check(st0.data.phone === "0812****7890" && st0.headers.get("cache-control") === "no-store" && /noindex/.test(st0.headers.get("x-robots-tag") || ""), "Halaman status menyamarkan nomor WA, tidak di-cache, tidak diindeks");
     const cid1 = (await api("GET", "/api/public")).data.churches[0].id;
     check((await api("POST", "/api/registrations", { church_id: cid1, phone: "081300000001", website: "http://spam", participants: [{ name: "Bot", role: "peserta", gender: "L" }] })).status === 400, "Kolom jebakan bot menolak pendaftaran otomatis");
@@ -452,7 +460,7 @@ async function api(method, url, body, cookie) {
     check((await api("POST", "/api/admin/privacy/purge-phones", { confirm: "salah" }, cookie)).status === 400, "Hapus nomor WA butuh konfirmasi 'HAPUS'");
     const purge = await api("POST", "/api/admin/privacy/purge-phones", { confirm: "HAPUS" }, cookie);
     const after2 = await api("GET", "/api/admin/privacy", null, cookie);
-    check(purge.data.cleared === priv.data.phones && after2.data.phones === 0 && (await api("POST", "/api/status/lookup", { code: regCode, phone: "081234567890" })).status === 404,
+    check(purge.data.cleared === priv.data.phones && after2.data.phones === 0 && (await api("POST", "/api/status/lookup", { phone: "081234567890" })).status === 404,
       `Setelah acara: ${purge.data.cleared} nomor WA dihapus, cek status lewat nomor tidak bisa lagi`);
 
     // keamanan dasar
