@@ -1,0 +1,8 @@
+# Cek pembaruan keamanan dependensi tiap minggu dan buka PR otomatis
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

@@ -1,4 +1,4 @@
-// Menjalankan server di laptop/VPS: npm start
+// Menjalankan server di laptop: npm start
 const app = require("./index");
 const { init } = require("./db");
 const { ensureInitialAdmin } = require("./auth");

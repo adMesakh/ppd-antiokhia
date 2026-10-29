@@ -100,7 +100,7 @@
     $("#stage").innerHTML = list.map((p, i) => `
       <article class="scard${p.photo_url ? " has-photo" : ""}">
         <canvas data-art data-seed="${101 + i * 17}" data-theme="${THEMES[(i + 2) % THEMES.length]}"></canvas>${p.photo_url
-          ? `<img class="photo face" src="${esc(p.photo_url)}" alt="Foto ${esc(p.name)}" loading="lazy" decoding="async" onerror="this.remove()">`
+          ? `<img class="photo face" src="${esc(p.photo_url)}" alt="Foto ${esc(p.name)}" loading="lazy" decoding="async" data-rm>`
           : PH ? PH.img(PH.lineup[i % PH.lineup.length], 800) : ""}
         <div>
           <div class="tags"><span class="tag${p.tier === "utama" ? " hot" : ""}">${TIER[p.tier]}</span>${p.note ? `<span class="tag">${esc(p.note)}</span>` : ""}</div>

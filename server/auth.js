@@ -4,7 +4,7 @@ const { one, query } = require("./db");
 
 const COOKIE = "rpk_session";
 const ADMIN_DAYS = 14;   // sesi admin desktop
-const SCANNER_DAYS = 45; // sesi scanner dibuat panjang supaya tidak kedaluwarsa saat offline di lokasi
+const SCANNER_DAYS = 14; // cukup untuk login H-7 lalu offline selama acara; data peserta di HP tidak tersimpan terlalu lama
 
 function hashPassword(pw) {
   const salt = crypto.randomBytes(16);
@@ -20,12 +20,27 @@ function verifyPassword(pw, stored) {
   return expected.length === hash.length && crypto.timingSafeEqual(expected, hash);
 }
 
+// Token sesi hanya disimpan sebagai hash SHA-256: bila isi database bocor, token tidak bisa dipakai untuk login.
+const hashToken = (t) => "h:" + crypto.createHash("sha256").update(String(t)).digest("base64url");
+
 async function createToken(user, label) {
   const token = crypto.randomBytes(32).toString("base64url");
   const days = user.role === "scanner" ? SCANNER_DAYS : ADMIN_DAYS;
   const expires = new Date(Date.now() + days * 864e5).toISOString();
-  await query("INSERT INTO auth_tokens (token, user_id, expires_at, label) VALUES ($1, $2, $3, $4)", [token, user.id, expires, label || ""]);
+  await query("DELETE FROM auth_tokens WHERE expires_at < $1", [new Date().toISOString()]); // bersihkan sesi kedaluwarsa
+  await query("INSERT INTO auth_tokens (token, user_id, expires_at, label) VALUES ($1, $2, $3, $4)", [hashToken(token), user.id, expires, cleanLabel(label)]);
   return { token, expires };
+}
+const cleanLabel = (s) => String(s || "").replace(/[\u0000-\u001f]/g, " ").slice(0, 60);
+async function revokeToken(token) {
+  await query("DELETE FROM auth_tokens WHERE token = $1 OR token = $2", [hashToken(token), token]);
+}
+
+// Bandingkan dengan hash palsu bila username tidak ada, supaya waktu respons tidak membocorkan username yang terdaftar
+const DUMMY_HASH = hashPassword(crypto.randomBytes(12).toString("hex"));
+function checkLogin(user, password) {
+  const ok = verifyPassword(password, user ? user.pass_hash : DUMMY_HASH);
+  return !!(user && user.active && ok);
 }
 
 function readCookie(req, name) {
@@ -41,12 +56,16 @@ async function userFromRequest(req) {
   const h = req.headers.authorization || "";
   const bearer = h.startsWith("Bearer ") ? h.slice(7).trim() : null;
   const token = bearer || readCookie(req, COOKIE);
-  if (!token) return null;
-  const row = await one(`
-    SELECT u.id, u.username, u.name, u.role, u.active, t.expires_at
+  // Token asli tidak pernah mengandung ":"; menolak nilai berbentuk hash supaya isi database yang bocor tidak bisa dipakai login
+  if (!token || token.length > 200 || token.includes(":")) return null;
+  const hashed = hashToken(token);
+  let row = await one(`
+    SELECT u.id, u.username, u.name, u.role, u.active, t.expires_at, t.token AS stored
     FROM auth_tokens t JOIN users u ON u.id = t.user_id
-    WHERE t.token = $1`, [token]);
+    WHERE t.token = $1 OR (t.token = $2 AND t.token NOT LIKE 'h:%')`, [hashed, token]);
   if (!row || !row.active || row.expires_at < new Date().toISOString()) return null;
+  // Sesi lama (sebelum token di-hash) diubah ke bentuk hash tanpa perlu login ulang
+  if (row.stored !== hashed) await query("UPDATE auth_tokens SET token = $1 WHERE token = $2", [hashed, token]);
   return { id: row.id, username: row.username, name: row.name, role: row.role, token, viaCookie: !bearer };
 }
 
@@ -87,4 +106,4 @@ async function ensureInitialAdmin() {
   adminChecked = true;
 }
 
-module.exports = { state, COOKIE, ADMIN_DAYS, hashPassword, verifyPassword, createToken, userFromRequest, requireRole, ensureInitialAdmin };
+module.exports = { state, hashToken, revokeToken, checkLogin, COOKIE, ADMIN_DAYS, hashPassword, verifyPassword, createToken, userFromRequest, requireRole, ensureInitialAdmin };

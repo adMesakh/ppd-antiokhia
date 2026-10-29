@@ -319,3 +319,4 @@ body.no-player{padding-bottom:0}
 .prow.solo .meta{grid-column:1}
 @media (hover:none){.slide-btn{display:none}}
 .gallery-more{display:flex;justify-content:center;margin-top:22px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}

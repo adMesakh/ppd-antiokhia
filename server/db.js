@@ -1,6 +1,6 @@
 // Database Postgres.
 // - Di Vercel (atau server mana pun) dengan DATABASE_URL: memakai Postgres sungguhan (misalnya Neon).
-// - Tanpa DATABASE_URL (laptop, VPS, pengujian): memakai PGlite, Postgres yang berjalan di dalam Node dan menyimpan data di folder DATA_DIR.
+// - Tanpa DATABASE_URL (laptop, pengujian): memakai PGlite, Postgres yang berjalan di dalam Node dan menyimpan data di folder DATA_DIR.
 // Semua tabel dibuat otomatis saat aplikasi pertama kali berjalan.
 const path = require("path");
 const fs = require("fs");
@@ -245,7 +245,7 @@ const DEFAULT_SETTINGS = {
 async function getSettings() {
   const rows = await many("SELECT key, value FROM settings");
   const out = { ...DEFAULT_SETTINGS };
-  for (const r of rows) { try { out[r.key] = JSON.parse(r.value); } catch (_) { /* abaikan nilai rusak */ } }
+  for (const r of rows) { if (!(r.key in DEFAULT_SETTINGS)) continue; try { out[r.key] = JSON.parse(r.value); } catch (_) { /* abaikan nilai rusak */ } }
   return out;
 }
 

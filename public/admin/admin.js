@@ -820,7 +820,7 @@
   // AKUN
   // =====================================================================
   VIEWS.akun = async () => {
-    const users = await GET("/api/admin/users");
+    const [users, priv, wall] = await Promise.all([GET("/api/admin/users"), GET("/api/admin/privacy"), GET("/api/admin/wallboard-key")]);
     view.innerHTML = `
       <div class="head"><div><h1>Akun &amp; scanner</h1><p class="muted">Buat satu akun per petugas scanner. Petugas membuka <a href="/scan/" target="_blank">${esc(location.origin)}/scan/</a> di HP Android lalu login.</p></div></div>
       <form class="card" id="uF"><h3>Akun baru</h3>
@@ -835,7 +835,46 @@
         ${users.map((u) => `<tr><td class="mono">${esc(u.username)}</td><td>${esc(u.name)}${u.id === me.id ? ` <span class="muted">(kamu)</span>` : ""}</td><td>${u.role === "admin" ? "Admin" : "Scanner"}</td>
           <td>${u.active ? `<span class="pill lunas">Aktif</span>` : `<span class="pill batal">Nonaktif</span>`}</td><td class="num">${u.sessions}</td><td class="num">${u.scans}</td>
           <td class="actions"><button class="btn sm" data-pw="${u.id}">Ganti password</button> ${u.id !== me.id ? `<button class="btn sm ${u.active ? "danger" : ""}" data-toggle="${u.id}" data-active="${u.active}">${u.active ? "Nonaktifkan" : "Aktifkan"}</button>` : ""}</td></tr>`).join("")}
-      </tbody></table></div>`;
+      </tbody></table></div>
+      <div class="card" id="wallCard"><h3>Layar TV (wallboard)</h3>
+        <p class="muted">Buat link khusus untuk TV/monitor. Link ini hanya bisa menampilkan wallboard, tidak bisa membuka dashboard, jadi aman dipasang di tempat umum.</p>
+        <p>${wall.active ? `<span class="pill lunas">Link aktif</span>` : `<span class="muted">Belum ada link.</span>`}</p>
+        <div class="toolbar"><button class="btn primary" id="wallNew">${wall.active ? "Buat link baru" : "Buat link layar TV"}</button>${wall.active ? `<button class="btn danger" id="wallOff">Cabut link</button>` : ""}</div>
+      </div>
+      <div class="card" id="privCard"><h3>Privasi data</h3>
+        <p class="muted">Nomor WhatsApp hanya dipakai untuk konfirmasi pembayaran dan cek status. Setelah acara selesai, hapus semua nomor ini. Nama peserta dan data kehadiran tetap tersimpan untuk laporan.</p>
+        <p><b>${priv.phones}</b> dari ${priv.registrations} pendaftaran masih menyimpan nomor WhatsApp.</p>
+        <div><button class="btn danger" id="purgeBtn"${priv.phones ? "" : " disabled"}>Hapus semua nomor WhatsApp</button></div>
+        <p class="muted" style="margin-top:8px">HP scanner menyimpan daftar nama peserta supaya bisa bekerja tanpa internet. Setelah acara, nonaktifkan semua akun scanner supaya HP tidak bisa sinkron lagi. <b>${priv.scanners}</b> akun scanner masih aktif.</p>
+        <div><button class="btn danger" id="scanOff"${priv.scanners ? "" : " disabled"}>Nonaktifkan semua akun scanner</button></div>
+      </div>`;
+    const typed = (title, text, word, url, done) => {
+      const body = openDialog(`<div class="dlg-head"><h2>${title}</h2></div>
+        <form id="cf" style="display:grid;gap:12px"><p class="muted">${text}</p>
+          <label>Ketik <b>${word}</b> untuk melanjutkan<input name="confirm" autocomplete="off"></label>
+          <div class="dlg-foot"><button type="button" class="btn" data-close>Batal</button><button class="btn danger">Lanjutkan</button></div></form>`, { narrow: true });
+      $("#cf", body).onsubmit = async (ev) => { ev.preventDefault(); try { const r = await POST(url, { confirm: new FormData(ev.target).get("confirm").trim() }); toast(done(r)); closeDialog(); VIEWS.akun(); } catch (x) { fail(x); } };
+    };
+    $("#scanOff").onclick = () => typed("Nonaktifkan semua akun scanner?", "Semua HP petugas akan keluar dan tidak bisa sinkron. Akun bisa diaktifkan lagi satu per satu bila perlu.", "NONAKTIFKAN", "/api/admin/privacy/disable-scanners", (r) => `${r.disabled} akun scanner dinonaktifkan`);
+    $("#wallNew").onclick = async () => {
+      if (wall.active && !(await confirmBox("Buat link baru?", "Link lama langsung tidak berlaku. TV yang memakai link lama harus dibuka ulang dengan link baru.", "Buat link baru"))) return;
+      try {
+        const r = await POST("/api/admin/wallboard-key");
+        const link = `${location.origin}/wallboard.html#k=${r.key}`;
+        const body = openDialog(`<div class="dlg-head"><h2>Link layar TV</h2></div>
+          <p class="muted">Buka link ini di browser TV/laptop yang tersambung ke TV. Simpan baik-baik: link hanya ditampilkan sekali.</p>
+          <input id="wallLink" readonly value="${esc(link)}" style="font-family:var(--mono);font-size:.85rem">
+          <div class="dlg-foot"><button class="btn" id="wallCopy">Salin link</button><button class="btn primary" data-close>Selesai</button></div>`, { narrow: true });
+        $("#wallLink", body).onclick = (e) => e.target.select();
+        $("#wallCopy", body).onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link disalin"); } catch (_) { $("#wallLink", body).select(); } };
+        dlg.addEventListener("close", () => VIEWS.akun(), { once: true });
+      } catch (x) { fail(x); }
+    };
+    if ($("#wallOff")) $("#wallOff").onclick = async () => {
+      if (!(await confirmBox("Cabut link layar TV?", "TV yang memakai link ini akan berhenti menampilkan data.", "Cabut"))) return;
+      try { await DEL("/api/admin/wallboard-key"); toast("Link dicabut"); VIEWS.akun(); } catch (x) { fail(x); }
+    };
+    $("#purgeBtn").onclick = () => typed("Hapus semua nomor WhatsApp?", "Tidak bisa dibatalkan. Setelah ini, cek status lewat kode + nomor WA tidak bisa dipakai lagi (tautan status tetap jalan). Unduh CSV peserta dulu bila masih butuh nomornya.", "HAPUS", "/api/admin/privacy/purge-phones", (r) => `${r.cleared} nomor dihapus`);
     $("#uF").onsubmit = async (e) => { e.preventDefault(); try { await POST("/api/admin/users", Object.fromEntries(new FormData(e.target))); toast("Akun dibuat"); VIEWS.akun(); } catch (x) { fail(x); } };
     view.onclick = async (e) => {
       const pw = e.target.closest("[data-pw]"), tg = e.target.closest("[data-toggle]");

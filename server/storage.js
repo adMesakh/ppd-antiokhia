@@ -1,6 +1,6 @@
 // Penyimpanan file unggahan (foto galeri, foto pembicara, lagu latar).
 // - Di Vercel: Vercel Blob (store harus dibuat dengan akses Public).
-// - Di laptop/VPS: folder DATA_DIR/uploads, dilayani di /uploads/...
+// - Di laptop: folder DATA_DIR/uploads, dilayani di /uploads/...
 const path = require("path");
 const fs = require("fs");
 const { DATA_DIR } = require("./db");

@@ -1,7 +1,21 @@
+# dependensi & build
 node_modules/
-data/
-.env
-tests/screenshots/
-demo/shots/
-demo/*.html
 .vercel/
+
+# data lokal (database PGlite, unggahan, cadangan) — jangan pernah di-commit
+data/
+*.db
+*.sqlite
+
+# rahasia
+.env
+.env.*
+!.env.example
+
+# hasil uji & alat pratinjau lokal
+tests/screenshots/
+demo/
+
+# sistem
+.DS_Store
+*.log

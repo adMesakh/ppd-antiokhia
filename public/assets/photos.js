@@ -2,6 +2,8 @@
 // Hanya foto gratis, bukan Unsplash+. Bila foto gagal dimuat (misalnya tanpa internet), ilustrasi panggung tetap tampil di belakangnya.
 // Untuk mengganti foto: ambil ID dari alamat gambar images.unsplash.com/photo-<ID>.
 (function () {
+  // Gambar bertanda data-rm dihapus bila gagal dimuat (ilustrasi di belakangnya tetap tampil). Tanpa atribut onerror supaya lolos CSP.
+  document.addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && t.hasAttribute("data-rm")) t.remove(); }, true);
   const P = {
     stageLights: { id: "1470229722913-7c0e2dbbafd3", by: "Yvette de Wit", page: "https://unsplash.com/photos/NYrVisodQ2M" },
     handsUp: { id: "1477281765962-ef34e8bb0967", by: "Edwin Andrade", page: "https://unsplash.com/photos/4V1dC_eoCwg" },
@@ -24,6 +26,6 @@
     lineup: [P.grayCrowd, P.frontStage, P.stageLights],
     url,
     // <img> yang menutupi ilustrasi; dihapus sendiri bila gagal dimuat
-    img(p, w, cls) { return `<img class="${cls || "photo"}" src="${url(p, w)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`; },
+    img(p, w, cls) { return `<img class="${cls || "photo"}" src="${url(p, w)}" alt="" loading="lazy" decoding="async" data-rm>`; },
   };
 })();

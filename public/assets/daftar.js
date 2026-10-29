@@ -110,7 +110,7 @@
       const res = await fetch("/api/registrations", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          church_id: Number($("#church").value), phone: $("#phone").value, mode,
+          church_id: Number($("#church").value), phone: $("#phone").value, mode, website: $("#website").value,
           participants: filled.map((r) => ({ name: r.name, role: r.role, gender: r.gender })),
         }),
       });

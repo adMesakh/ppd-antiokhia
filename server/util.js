@@ -24,7 +24,8 @@ function normalizePhone(v) {
 
 function csv(rows, headers) {
   const esc = (v) => {
-    const s = v == null ? "" : String(v);
+    let s = v == null ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s; // cegah rumus berbahaya saat dibuka di Excel
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return "﻿" + [headers.map(esc).join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
@@ -32,12 +33,20 @@ function csv(rows, headers) {
 
 // Pembatas laju yang disimpan di database, supaya tetap berlaku walau Vercel menjalankan banyak salinan aplikasi.
 // Maksimal `max` permintaan per `windowMs` per IP untuk setiap nama batas.
-function rateLimit({ name, windowMs, max, message }) {
+// IP pengunjung. Di Vercel dipakai header yang diisi Vercel sendiri (tidak bisa dipalsukan pengunjung).
+function clientIp(req) {
+  if (process.env.VERCEL) return String(req.get("x-real-ip") || req.get("x-vercel-forwarded-for") || req.ip || "unknown").split(",")[0].trim();
+  return req.ip || "unknown";
+}
+// key(req) opsional: misalnya per username, supaya tebak-tebakan password dari banyak IP tetap dibatasi
+function rateLimit({ name, windowMs, max, message, key: keyFn }) {
   return async (req, res, next) => {
     try {
-      const key = `${name}:${req.ip || "unknown"}`;
+      const id = keyFn ? keyFn(req) : clientIp(req);
+      if (!id) return next();
+      const key = `${name}:${String(id).slice(0, 80)}`;
       const now = Date.now();
-      await query("DELETE FROM rate_hits WHERE at < $1", [now - windowMs]);
+      await query("DELETE FROM rate_hits WHERE key LIKE $1 AND at < $2", [name + ":%", now - windowMs]);
       // Catat dulu baru hitung, supaya permintaan paralel tidak bisa lolos bersamaan
       await query("INSERT INTO rate_hits (key, at) VALUES ($1, $2)", [key, now]);
       const n = (await one("SELECT COUNT(*)::int AS n FROM rate_hits WHERE key = $1 AND at >= $2", [key, now - windowMs])).n;
@@ -47,4 +56,6 @@ function rateLimit({ name, windowMs, max, message }) {
   };
 }
 
-module.exports = { randomCode, cleanText, normalizePhone, csv, rateLimit };
+// Hanya alamat https (untuk tautan yang diisi admin: Spotify, Google Drive)
+const httpsUrl = (u) => /^https:\/\/[^\s"'<>]+\.[^\s"'<>]+$/.test(String(u || ""));
+module.exports = { randomCode, cleanText, normalizePhone, csv, rateLimit, clientIp, httpsUrl };

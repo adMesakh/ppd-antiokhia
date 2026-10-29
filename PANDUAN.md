@@ -5,7 +5,7 @@ Aplikasinya sudah jadi dan sudah diuji. Yang tersisa adalah hal-hal yang butuh a
 ## A. Yang harus kamu lakukan sendiri (sekali)
 
 1. **Pasang di Vercel (gratis).** Ikuti bagian "Pasang di Vercel" di README.md: impor repo, sambungkan database Neon (pilih region Singapore) dan Blob (Public), isi `ADMIN_PASSWORD`, lalu Redeploy. HTTPS sudah otomatis, jadi kamera HP dan mode offline scanner langsung jalan.
-2. **Login ke `/admin`, lalu ganti password** di menu Akun & scanner.
+2. **Login ke `/admin`, lalu ganti password** di menu Akun & scanner. Pakai password panjang (minimal 12 karakter) dan jangan dibagikan; setiap panitia sebaiknya punya akun sendiri.
 3. **Domain sendiri (opsional).** Alamat `nama-proyek.vercel.app` sudah cukup. Bila ingin domain sendiri: Vercel → proyek → Settings → Domains.
 4. **Cadangan.** Neon menyimpan riwayat database beberapa hari ke belakang. Untuk cadangan sendiri, jalankan `DATABASE_URL=… npm run backup` dari laptop (hasilnya file JSON di `data/backup/`), misalnya seminggu sekali dan sehari sebelum acara.
 
@@ -21,7 +21,7 @@ Semua dari `/admin`:
 
 ## C. Selama masa pendaftaran
 
-- **Wallboard TV.** Klik tombol kuning **Wallboard TV** di pojok kanan atas dashboard. Halaman terbuka di tab baru; sambungkan laptop ke TV/proyektor, klik **Layar penuh**. Angka diperbarui sendiri tiap 20 detik dan layar tidak akan mati sendiri. Nama dan nomor WA peserta tidak pernah tampil di sini, jadi aman dipasang di tempat umum.
+- **Wallboard TV.** Untuk dicek sendiri: tombol kuning **Wallboard TV** di pojok kanan atas dashboard. Untuk TV/monitor di tempat umum: **Akun & scanner → Layar TV → Buat link layar TV**, lalu buka link itu di browser TV dan klik **Layar penuh**. Link ini hanya bisa menampilkan wallboard (tidak bisa membuka dashboard) dan bisa dicabut kapan saja. Nama dan nomor WA peserta tidak pernah tampil di wallboard.
 
 - Setiap uang tunai diterima: **Pendaftaran → Tandai lunas**. QR peserta langsung terbit dan koordinator bisa melihatnya di tautan status.
 - Gereja yang mendaftar lewat telepon: **+ Pendaftaran oleh admin** (bisa langsung lunas).
@@ -33,7 +33,7 @@ Semua dari `/admin`:
 2. **Buat akun scanner**, satu per petugas: Akun & scanner → Akun baru. Catat password-nya.
 3. **Siapkan HP Android petugas**:
    - Update Google Chrome ke versi terbaru.
-   - Buka `https://domainmu/scan`, login, tunggu data terunduh.
+   - Buka `https://domainmu/scan`, login, tunggu data terunduh. **Login paling cepat H-7**: sesi scanner berlaku 14 hari.
    - Menu Chrome (⋮) → **Tambahkan ke layar utama / Instal aplikasi**.
    - Izinkan kamera saat diminta.
    - Pengaturan HP → Baterai → matikan optimasi baterai untuk Chrome.
@@ -45,7 +45,7 @@ Semua dari `/admin`:
 
 - Petugas pilih sesi, lalu scan. Hijau = tercatat, kuning = sudah tercatat sebelumnya, merah = QR tidak dikenal.
 - ID card rusak atau tertinggal: pakai tab **Cari nama** atau **Ketik kode** (kode tercetak di bawah QR).
-- Peserta yang lunas setelah data diunduh akan muncul merah. Catat namanya di kertas, lalu masukkan lewat admin → Kehadiran → Catat manual saat ada koneksi.
+- Peserta yang lunas setelah data diunduh akan muncul merah. Catat namanya di kertas, lalu masukkan lewat admin → Jadwal & kehadiran → Catat manual saat ada koneksi.
 - **Sekali sehari**, bawa HP ke spot WiFi berbayar: login WiFi dulu lewat browser, lalu buka aplikasi dan tekan **Sinkronkan**. Bila muncul "WiFi perlu login", berarti voucher WiFi belum aktif.
 - Jangan tekan Keluar di HP yang masih punya scan belum terkirim.
 
@@ -55,7 +55,10 @@ Semua dari `/admin`:
 2. Admin → Hasil & lomba: cek nominasi, isi pemenang lomba, lalu nyalakan **Tampilkan hasil**.
 3. Unggah foto dokumentasi di Galeri foto.
 4. Unduh CSV peserta dan kehadiran untuk arsip.
-5. Data peserta (banyak di bawah umur): tentukan kapan data dihapus, misalnya 3 bulan setelah acara, dan nonaktifkan akun scanner.
+5. **Lindungi data peserta** (Akun & scanner → Privasi data):
+   - **Nonaktifkan semua akun scanner** setelah semua HP tersinkron. Daftar nama peserta di HP tidak bisa diperbarui lagi; minta petugas menekan Keluar supaya data di HP terhapus.
+   - **Cabut link layar TV**.
+   - **Hapus semua nomor WhatsApp** setelah urusan pembayaran beres (unduh CSV dulu bila masih perlu). Nama dan kehadiran tetap tersimpan untuk laporan.
 
 ## G. Keputusan panitia yang masih terbuka
 

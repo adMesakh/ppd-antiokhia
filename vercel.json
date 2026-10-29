@@ -43,19 +43,13 @@
       "permanent": false
     },
     {
-      "source": "/admin/wallboard.html",
-      "missing": [
-        {
-          "type": "cookie",
-          "key": "rpk_session"
-        }
-      ],
-      "destination": "/admin/login.html?next=%2Fadmin%2Fwallboard.html",
+      "source": "/scan",
+      "destination": "/scan/",
       "permanent": false
     },
     {
-      "source": "/scan",
-      "destination": "/scan/",
+      "source": "/admin/wallboard.html",
+      "destination": "/wallboard.html",
       "permanent": false
     }
   ],
@@ -63,6 +57,14 @@
     {
       "source": "/(.*)",
       "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://*.public.blob.vercel-storage.com; media-src 'self' blob: https://*.public.blob.vercel-storage.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains"
+        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
@@ -76,8 +78,57 @@
           "value": "DENY"
         },
         {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
           "key": "Permissions-Policy",
-          "value": "camera=(self), microphone=(), geolocation=()"
+          "value": "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"
+        }
+      ]
+    },
+    {
+      "source": "/admin/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/scan/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/status.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/wallboard.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
         }
       ]
     },

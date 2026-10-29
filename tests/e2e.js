@@ -388,18 +388,19 @@ async function api(method, url, body, cookie) {
     check(true, "Semua halaman admin terbuka");
 
     // ---------- Wallboard TV + penghitung pengunjung ----------
-    const before = (await api("GET", "/api/admin/wallboard", null, cookie)).data.visitors;
-    const visits = async () => (await api("GET", "/api/admin/wallboard", null, cookie)).data.visitors;
+    const before = (await api("GET", "/api/wallboard", null, cookie)).data.visitors;
+    const visits = async () => (await api("GET", "/api/wallboard", null, cookie)).data.visitors;
     const vctx = await browser.newContext({ userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36" }); const vp = await vctx.newPage();
     await vp.goto(BASE + "/"); await vp.waitForTimeout(600); await vp.goto(BASE + "/daftar.html"); await vp.waitForTimeout(600);
     const after = await visits();
     check(after === before + 1, `Pengunjung website terhitung per perangkat (2 halaman dibuka di 1 HP → +1, total ${after})`);
     const wctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } }); const wp = await wctx.newPage(); watch(wp, "wallboard");
     await wp.goto(BASE + "/admin/wallboard.html");
-    check(/login\.html\?next=%2Fadmin%2Fwallboard\.html/.test(wp.url()), "Wallboard tanpa login diarahkan ke halaman login");
+    await wp.waitForURL(/login\.html/);
+    check(/login\.html\?next=%2Fwallboard\.html/.test(wp.url()), "Wallboard tanpa login/link TV diarahkan ke halaman login (alamat lama dialihkan)");
     await wp.fill("#lgUser", "admin"); await wp.fill("#lgPass", "panitia-rahasia"); await wp.click("#lgBtn");
     await wp.waitForURL(/wallboard\.html$/); await wp.waitForSelector("#rank li .nm"); await wp.waitForTimeout(1200);
-    const wb = await api("GET", "/api/admin/wallboard", null, cookie);
+    const wb = await api("GET", "/api/wallboard", null, cookie);
     const shown = await wp.evaluate(() => ({ p: document.querySelector("#kPeserta").textContent, g: document.querySelector("#kGereja").textContent, v: document.querySelector("#kVisit").textContent, top: document.querySelector("#rank .nm").textContent, feed: document.querySelectorAll("#feed li:not([hidden])").length, now: document.querySelector("#now").innerText, overflow: document.documentElement.scrollHeight > innerHeight + 2 }));
     check(shown.p === wb.data.participants.toLocaleString("id-ID") && shown.g === String(wb.data.churches) && shown.v === wb.data.visitors.toLocaleString("id-ID") && shown.top === wb.data.top_churches[0].church && shown.feed > 0 && !shown.overflow,
       `Wallboard TV: ${shown.p} peserta, ${shown.g} gereja, ${shown.v} pengunjung, teratas ${shown.top}, muat satu layar 1080p`);
@@ -422,6 +423,37 @@ async function api(method, url, body, cookie) {
       `Seminar berlangsung menampilkan pembicara, topik, peserta hadir: ${semNow.now.replace(/\s+/g, " ").trim()}`);
     check(!JSON.stringify(wb.data).includes("Pdt. Yohanes") && !JSON.stringify(wb.data).includes("0812"), "Wallboard tidak memuat nama atau nomor WA peserta");
     await wp.screenshot({ path: path.join(SHOTS, "wallboard-1080p.png") });
+    // link khusus TV: tanpa login, hanya bisa membaca wallboard
+    const wk = (await api("POST", "/api/admin/wallboard-key", {}, cookie)).data.key;
+    const tv = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage(); watch(tv, "tv");
+    await tv.goto(BASE + "/wallboard.html#k=" + wk); await tv.waitForSelector("#rank li .nm");
+    const tvUrl = tv.url(), tvStored = await tv.evaluate(() => localStorage.getItem("rpk-wall-key"));
+    const withKey = (u) => fetch(BASE + u, { headers: { "X-Wallboard-Key": wk } }).then((r) => r.status);
+    check(/wallboard\.html$/.test(tvUrl) && tvStored === wk && await withKey("/api/admin/summary") === 401 && await withKey("/api/admin/participants") === 401,
+      "Link layar TV: tampil tanpa login, kunci hilang dari alamat, tidak bisa membuka data admin");
+    await tv.reload(); await tv.waitForSelector("#rank li .nm");
+    await api("DELETE", "/api/admin/wallboard-key", null, cookie);
+    check(await withKey("/api/wallboard") === 401 && (await api("POST", "/api/admin/wallboard-key", {}, cookie)).data.key !== wk, "Link layar TV bisa dicabut dan dibuat ulang");
+
+    // ---------- perlindungan data & keamanan tambahan ----------
+    const st0 = await api("GET", "/api/status/" + (await api("POST", "/api/status/lookup", { code: regCode, phone: "081234567890" })).data.status_token);
+    check(st0.data.phone === "0812****7890" && st0.headers.get("cache-control") === "no-store" && /noindex/.test(st0.headers.get("x-robots-tag") || ""), "Halaman status menyamarkan nomor WA, tidak di-cache, tidak diindeks");
+    const cid1 = (await api("GET", "/api/public")).data.churches[0].id;
+    check((await api("POST", "/api/registrations", { church_id: cid1, phone: "081300000001", website: "http://spam", participants: [{ name: "Bot", role: "peserta", gender: "L" }] })).status === 400, "Kolom jebakan bot menolak pendaftaran otomatis");
+    await api("POST", "/api/admin/registrations", { church_id: cid1, status: "lunas", participants: [{ name: "=HYPERLINK(\"http://x\")", role: "peserta", gender: "L" }] }, cookie);
+    const csvTxt = await (await fetch(BASE + "/api/admin/export/participants.csv", { headers: { Cookie: cookie } })).text();
+    check(csvTxt.includes(`"'=HYPERLINK(""http://x"")"`) && !/(^|,)"?=HYPERLINK/m.test(csvTxt), "Export CSV aman dari rumus Excel berbahaya");
+    const home = await fetch(BASE + "/");
+    check(/script-src 'self'(;|$)/.test(home.headers.get("content-security-policy") || "") && /max-age/.test(home.headers.get("strict-transport-security") || "") && /frame-ancestors 'none'/.test(home.headers.get("content-security-policy")),
+      "Header keamanan aktif: CSP tanpa skrip inline, HSTS, anti-iframe");
+    const robots = await (await fetch(BASE + "/robots.txt")).text();
+    check(/Disallow: \/admin\//.test(robots) && /Disallow: \/status\.html/.test(robots), "robots.txt melarang mesin pencari membuka admin dan halaman status");
+    const priv = await api("GET", "/api/admin/privacy", null, cookie);
+    check((await api("POST", "/api/admin/privacy/purge-phones", { confirm: "salah" }, cookie)).status === 400, "Hapus nomor WA butuh konfirmasi 'HAPUS'");
+    const purge = await api("POST", "/api/admin/privacy/purge-phones", { confirm: "HAPUS" }, cookie);
+    const after2 = await api("GET", "/api/admin/privacy", null, cookie);
+    check(purge.data.cleared === priv.data.phones && after2.data.phones === 0 && (await api("POST", "/api/status/lookup", { code: regCode, phone: "081234567890" })).status === 404,
+      `Setelah acara: ${purge.data.cleared} nomor WA dihapus, cek status lewat nomor tidak bisa lagi`);
 
     // keamanan dasar
     check((await api("GET", "/api/admin/summary")).status === 401, "API admin menolak tanpa login");
@@ -431,6 +463,13 @@ async function api(method, url, body, cookie) {
     check((await api("POST", "/api/auth/login", { username: "scan-pintu1", password: "pintu12345" })).status === 403, "Akun scanner tidak bisa masuk dashboard admin");
     const gke = (await api("GET", "/api/admin/participants?status=menunggu", null, cookie)).data[0];
     check((await fetch(BASE + `/api/qr/${gke.qr_token}.svg`)).status === 404, "QR peserta yang belum lunas tidak bisa diambil");
+    const ses1 = (await api("GET", "/api/admin/sessions", null, cookie)).data[0];
+    const syncUnpaid = await (await fetch(BASE + "/api/scanner/sync", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + scanTok }, body: JSON.stringify({ device_id: "uji", records: [{ local_id: "x1", participant_id: gke.id, session_id: ses1.id, scanned_at: new Date().toISOString(), method: "kode" }] }) })).json();
+    check(syncUnpaid.rejected.length === 1 && !syncUnpaid.accepted.length, "Scan peserta yang belum lunas ditolak server saat sinkron");
+    check((await api("PUT", "/api/admin/settings", { spotify_url: "javascript:alert(1)" }, cookie)).status === 400 && (await api("PUT", "/api/admin/settings", { music_url: "https://contoh.com/x.mp3" }, cookie)).data.music_url !== "https://contoh.com/x.mp3",
+      "Tautan Spotify wajib https; alamat lagu hanya bisa dari unggahan");
+    const many = await Promise.all(Array.from({ length: 12 }, () => api("POST", "/api/auth/login", { username: "AdMin", password: "tebakan-salah" })));
+    check(many.some((r) => r.status === 429), "Tebak password ke satu akun dibatasi (per akun, bukan hanya per IP)");
 
     await camBrowser.close();
   } catch (e) {

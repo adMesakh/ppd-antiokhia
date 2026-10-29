@@ -1,4 +1,4 @@
-// Aplikasi Express: semua API, plus file statis saat berjalan di laptop/VPS.
+// Aplikasi Express: semua API, plus file statis saat berjalan di laptop.
 // Di Vercel, file di folder public/ dilayani CDN dan aplikasi ini menjadi satu Vercel Function.
 const path = require("path");
 const crypto = require("crypto");
@@ -7,7 +7,7 @@ const QRCode = require("qrcode");
 
 const { init, query, one, many, tx, getSettings, saveSettings } = require("./db");
 const auth = require("./auth");
-const { randomCode, cleanText, normalizePhone, csv, rateLimit } = require("./util");
+const { randomCode, cleanText, normalizePhone, csv, rateLimit, clientIp, httpsUrl } = require("./util");
 const { churchRankings, contestResults } = require("./stats");
 const storage = require("./storage");
 
@@ -15,13 +15,15 @@ const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 const app = express();
 app.disable("x-powered-by");
-if (process.env.VERCEL || process.env.TRUST_PROXY) app.set("trust proxy", true);
+// Vercel: IP diambil dari x-real-ip (lihat util.clientIp). Di belakang satu reverse proxy lain: percayai satu lompatan saja.
+if (process.env.VERCEL) app.set("trust proxy", true); else if (process.env.TRUST_PROXY) app.set("trust proxy", 1);
 
+const { SECURITY_HEADERS } = require("./headers");
 app.use((req, res, next) => {
-  res.set("X-Content-Type-Options", "nosniff");
-  res.set("Referrer-Policy", "same-origin");
-  res.set("X-Frame-Options", "DENY");
-  res.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  res.set(SECURITY_HEADERS);
+  if (/^\/(admin|scan|api)\/|^\/(status|wallboard)\.html/.test(req.path)) res.set("X-Robots-Tag", "noindex, nofollow");
+  // data panitia/peserta tidak boleh tersimpan di cache browser atau proxy
+  if (/^\/api\/(admin|scanner|status|auth)\b/.test(req.path)) res.set("Cache-Control", "no-store");
   next();
 });
 
@@ -99,12 +101,13 @@ app.post("/api/registrations", rateLimit({ name: "daftar", windowMs: 10 * 60e3, 
   const s = await getSettings();
   if (!s.registration_open) return bad(res, "Pendaftaran sedang ditutup. Hubungi panitia.");
   const b = req.body || {};
+  if (b.website) return bad(res, "Pendaftaran ditolak."); // kolom jebakan: hanya diisi bot
   const church = await one("SELECT id, name FROM churches WHERE id = $1", [intId(b.church_id)]);
   if (!church) return bad(res, "Pilih gereja asal dari daftar.");
   const phone = normalizePhone(b.phone);
   if (!phone) return bad(res, "Nomor WhatsApp tidak valid. Gunakan format 08xxxxxxxxxx.");
   if (!Array.isArray(b.participants) || !b.participants.length) return bad(res, "Tambahkan minimal satu peserta.");
-  if (b.participants.length > 150) return bad(res, "Maksimal 150 peserta per pendaftaran. Pecah menjadi beberapa pendaftaran.");
+  if (b.participants.length > 60) return bad(res, "Maksimal 60 peserta per pendaftaran. Pecah menjadi beberapa pendaftaran atau hubungi panitia.");
   const participants = parseParticipants(b.participants, res);
   if (!participants) return;
   if (b.mode === "sendiri" && participants.length !== 1) return bad(res, "Daftar diri sendiri hanya untuk satu orang. Pilih Rombongan untuk mendaftarkan beberapa orang.");
@@ -142,6 +145,8 @@ async function insertParticipant(q, registrationId, churchId, regCode, seq, p) {
   return r.rows[0].id;
 }
 
+// Nomor WA di halaman status (bisa dibuka siapa pun yang memegang tautan) disamarkan: 0812****7890
+const maskPhone = (p) => (/^\d{8,}$/.test(String(p || "")) ? p.slice(0, 4) + "****" + p.slice(-4) : "-");
 async function registrationView(reg, { includeQr }) {
   const church = (await one("SELECT name, city FROM churches WHERE id = $1", [reg.church_id])) || { name: "", city: "" };
   const participants = (await many("SELECT id, code, qr_token, name, role, gender, age FROM participants WHERE registration_id = $1 ORDER BY seq", [reg.id]))
@@ -152,7 +157,7 @@ async function registrationView(reg, { includeQr }) {
     });
   return {
     code: reg.code, status: reg.status, church: church.name, city: church.city,
-    coordinator: reg.coordinator, phone: reg.phone, fee_per_person: reg.fee_per_person,
+    coordinator: reg.coordinator, phone: maskPhone(reg.phone), fee_per_person: reg.fee_per_person,
     total: reg.fee_per_person * participants.length, created_at: reg.created_at, confirmed_at: reg.confirmed_at,
     participants,
   };
@@ -185,6 +190,44 @@ app.get("/api/qr/:file", h(async (req, res) => {
   res.send(svg);
 }));
 
+async function wallboardData(req, res) {
+  const [s, ppl, churchCount, vis, top, recent, sessions] = await Promise.all([
+    getSettings(),
+    one(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE r.status = 'lunas')::int AS paid
+         FROM participants p JOIN registrations r ON r.id = p.registration_id WHERE r.status != 'batal'`),
+    one("SELECT COUNT(DISTINCT church_id)::int AS n FROM registrations WHERE status != 'batal'"),
+    one("SELECT COUNT(DISTINCT vid)::int AS n FROM site_visits"),
+    many(`SELECT c.name AS church, c.city, COUNT(p.id)::int AS n
+          FROM churches c JOIN registrations r ON r.church_id = c.id AND r.status != 'batal' JOIN participants p ON p.registration_id = r.id
+          GROUP BY c.id, c.name, c.city ORDER BY n DESC, lower(c.name) LIMIT 8`),
+    many(`SELECT r.id, r.created_at, c.name AS church, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
+          FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 10`),
+    many(`SELECT s.id, s.title, s.kind, s.day, s.starts_at, s.ends_at, s.location, s.speaker, s.topic,
+            (SELECT COUNT(DISTINCT a.participant_id)::int FROM attendance a WHERE a.session_id = s.id) AS present
+          FROM sessions s ORDER BY s.day, s.starts_at, s.id`),
+  ]);
+  res.set("Cache-Control", "no-store");
+  res.json({
+    now: now(),
+    event: { name: s.event_name, dates_label: s.dates_label, location: s.location, start_at: s.start_at, end_at: s.end_at },
+    participants: ppl.total, paid: ppl.paid, churches: churchCount.n, visitors: vis.n,
+    top_churches: top, recent, sessions: sessionTimes(s.start_at, sessions),
+  });
+}
+
+// Wallboard: boleh diakses admin yang login, atau layar TV yang memegang link khusus (header X-Wallboard-Key)
+app.get("/api/wallboard", rateLimit({ name: "wall", windowMs: 60e3, max: 30 }), h(async (req, res) => {
+  const key = String(req.get("x-wallboard-key") || "");
+  let ok = false;
+  if (key && key.length < 100 && !key.includes(":")) {
+    const row = await one("SELECT value FROM settings WHERE key = 'wallboard_key_hash'");
+    ok = !!row && JSON.parse(row.value) === auth.hashToken(key);
+  }
+  if (!ok) { const u = await auth.userFromRequest(req); ok = !!u && u.role === "admin"; }
+  if (!ok) return bad(res, key ? "Link layar TV sudah tidak berlaku. Minta link baru ke admin." : "Belum login.", 401);
+  return wallboardData(req, res);
+}));
+
 // Penghitung pengunjung: dipanggil sekali per halaman publik. Hanya ID acak dari browser, tanpa IP.
 const wibDay = (t = Date.now()) => new Date(t + 7 * 36e5).toISOString().slice(0, 10);
 app.post("/api/visit", rateLimit({ name: "visit", windowMs: 10 * 60e3, max: 120 }), jsonSmall, h(async (req, res) => {
@@ -198,13 +241,22 @@ app.post("/api/visit", rateLimit({ name: "visit", windowMs: 10 * 60e3, max: 120 
 // ---------------------------------------------------------------------------
 // LOGIN
 // ---------------------------------------------------------------------------
-app.post("/api/auth/login", rateLimit({ name: "login", windowMs: 10 * 60e3, max: 15, message: "Terlalu banyak percobaan login. Tunggu 10 menit." }), jsonSmall, h(async (req, res) => {
+// Gagal login dihitung per akun + IP: menebak password dibatasi, tapi orang lain tidak bisa mengunci akun panitia dari koneksinya sendiri.
+const FAIL_WINDOW = 15 * 60e3, FAIL_MAX = 8;
+const failKey = (req, username) => `loginfail:${username.toLowerCase()}|${clientIp(req)}`.slice(0, 120);
+app.post("/api/auth/login", rateLimit({ name: "login", windowMs: 10 * 60e3, max: 30, message: "Terlalu banyak percobaan login. Tunggu 10 menit." }), jsonSmall, h(async (req, res) => {
   const username = cleanText(req.body?.username, 60);
   const password = String(req.body?.password || "");
   const mode = req.body?.mode === "scanner" ? "scanner" : "admin";
   if (auth.state.needsAdminPassword) return bad(res, "Admin belum dibuat. Isi ADMIN_PASSWORD di Vercel (Settings → Environment Variables), lalu Redeploy.", 503);
-  const user = await one("SELECT * FROM users WHERE lower(username) = lower($1)", [username]);
-  if (!user || !user.active || !auth.verifyPassword(password, user.pass_hash)) return bad(res, "Username atau password salah.", 401);
+  const fk = failKey(req, username);
+  await query("DELETE FROM rate_hits WHERE key LIKE 'loginfail:%' AND at < $1", [Date.now() - FAIL_WINDOW]);
+  // Catat percobaan dulu baru hitung, supaya percobaan yang dikirim bersamaan tidak lolos semua
+  await query("INSERT INTO rate_hits (key, at) VALUES ($1, $2)", [fk, Date.now()]);
+  if ((await one("SELECT COUNT(*)::int AS n FROM rate_hits WHERE key = $1", [fk])).n > FAIL_MAX) return bad(res, "Terlalu banyak percobaan untuk akun ini. Tunggu 15 menit.", 429);
+  const user = password.length <= 200 ? await one("SELECT * FROM users WHERE lower(username) = lower($1)", [username]) : null;
+  if (!auth.checkLogin(user, password)) return bad(res, "Username atau password salah.", 401);
+  await query("DELETE FROM rate_hits WHERE key = $1", [fk]); // berhasil: hitungan gagal direset
   if (mode === "admin" && user.role !== "admin") return bad(res, "Akun ini hanya untuk scanner. Buka aplikasi scanner di /scan.", 403);
   const { token, expires } = await auth.createToken(user, mode === "scanner" ? cleanText(req.body?.device, 60) || "scanner" : "admin-web");
   const pub = { id: user.id, username: user.username, name: user.name, role: user.role };
@@ -216,7 +268,7 @@ app.post("/api/auth/login", rateLimit({ name: "login", windowMs: 10 * 60e3, max:
 
 app.post("/api/auth/logout", h(async (req, res) => {
   const u = await auth.userFromRequest(req);
-  if (u) await query("DELETE FROM auth_tokens WHERE token = $1", [u.token]);
+  if (u) await auth.revokeToken(u.token);
   res.set("Set-Cookie", `${auth.COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
   res.json({ ok: true });
 }));
@@ -273,35 +325,19 @@ function sessionTimes(startAt, sessions) {
     return { ...x, start: new Date(x.start).toISOString(), end: new Date(end).toISOString() };
   });
 }
-A.get("/wallboard", async (req, res) => {
-  const [s, ppl, churchCount, vis, top, recent, sessions] = await Promise.all([
-    getSettings(),
-    one(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE r.status = 'lunas')::int AS paid
-         FROM participants p JOIN registrations r ON r.id = p.registration_id WHERE r.status != 'batal'`),
-    one("SELECT COUNT(DISTINCT church_id)::int AS n FROM registrations WHERE status != 'batal'"),
-    one("SELECT COUNT(DISTINCT vid)::int AS n FROM site_visits"),
-    many(`SELECT c.name AS church, c.city, COUNT(p.id)::int AS n
-          FROM churches c JOIN registrations r ON r.church_id = c.id AND r.status != 'batal' JOIN participants p ON p.registration_id = r.id
-          GROUP BY c.id, c.name, c.city ORDER BY n DESC, lower(c.name) LIMIT 8`),
-    many(`SELECT r.id, r.created_at, c.name AS church, (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
-          FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status != 'batal' ORDER BY r.created_at DESC, r.id DESC LIMIT 10`),
-    many(`SELECT s.id, s.title, s.kind, s.day, s.starts_at, s.ends_at, s.location, s.speaker, s.topic,
-            (SELECT COUNT(DISTINCT a.participant_id)::int FROM attendance a WHERE a.session_id = s.id) AS present
-          FROM sessions s ORDER BY s.day, s.starts_at, s.id`),
-  ]);
-  res.set("Cache-Control", "no-store");
-  res.json({
-    now: now(),
-    event: { name: s.event_name, dates_label: s.dates_label, location: s.location, start_at: s.start_at, end_at: s.end_at },
-    participants: ppl.total, paid: ppl.paid, churches: churchCount.n, visitors: vis.n,
-    top_churches: top, recent, sessions: sessionTimes(s.start_at, sessions),
-  });
+// Link khusus layar TV: hanya bisa membaca data wallboard, tidak bisa membuka dashboard. Disimpan sebagai hash.
+A.get("/wallboard-key", async (req, res) => res.json({ active: !!(await one("SELECT 1 AS x FROM settings WHERE key = 'wallboard_key_hash'")) }));
+A.post("/wallboard-key", async (req, res) => {
+  const key = crypto.randomBytes(24).toString("base64url");
+  await query("INSERT INTO settings (key, value) VALUES ('wallboard_key_hash', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [JSON.stringify(auth.hashToken(key))]);
+  res.status(201).json({ key });
 });
+A.del("/wallboard-key", async (req, res) => { await query("DELETE FROM settings WHERE key = 'wallboard_key_hash'"); res.json({ ok: true }); });
 A.get("/settings", async (req, res) => res.json(await getSettings()));
 A.put("/settings", jsonSmall, async (req, res) => {
   const b = req.body || {};
   const patch = {};
-  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_url", "music_title", "spotify_url", "code_prefix"];
+  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_title", "spotify_url", "code_prefix"]; // music_url hanya lewat unggah lagu
   for (const k of text) if (k in b) patch[k] = cleanText(b[k], k === "payment_note" ? 400 : 200);
   for (const k of ["start_at", "end_at"]) if (k in b) {
     if (Number.isNaN(new Date(b[k]).getTime())) return bad(res, "Format tanggal tidak valid.");
@@ -315,9 +351,10 @@ A.put("/settings", jsonSmall, async (req, res) => {
   for (const k of ["registration_open", "results_published"]) if (k in b) patch[k] = !!b[k];
   if ("gallery_drive_url" in b) {
     const u = cleanText(b.gallery_drive_url, 400);
-    if (u && !/^https:\/\/[^\s/]+\.[^\s]+$/.test(u)) return bad(res, "Link Google Drive harus diawali https://");
+    if (u && !httpsUrl(u)) return bad(res, "Link Google Drive harus diawali https://");
     patch.gallery_drive_url = u;
   }
+  if (patch.spotify_url && !httpsUrl(patch.spotify_url)) return bad(res, "Tautan Spotify harus diawali https://");
   if (patch.code_prefix !== undefined) patch.code_prefix = patch.code_prefix.toUpperCase().replace(/[^A-Z0-9]/g, "") || "RP";
   res.json(await saveSettings(patch));
 });
@@ -704,8 +741,25 @@ A.put("/users/:id", jsonSmall, async (req, res) => {
   if (pw && pw.length < 8) return bad(res, "Password minimal 8 karakter.");
   await query("UPDATE users SET name = $1, role = $2, active = $3, pass_hash = $4 WHERE id = $5",
     [cleanText(req.body?.name ?? u.name, 60) || u.username, role, active, pw ? auth.hashPassword(pw) : u.pass_hash, id]);
-  if (!active || pw) await query("DELETE FROM auth_tokens WHERE user_id = $1 AND token != $2", [id, req.user.token]);
+  if (!active || pw) await query("DELETE FROM auth_tokens WHERE user_id = $1 AND token != $2", [id, auth.hashToken(req.user.token)]);
   res.json({ ok: true });
+});
+
+// --- Privasi: hapus nomor WhatsApp setelah acara (nama & kehadiran tetap untuk laporan) ---
+A.get("/privacy", async (req, res) => {
+  res.json(await one(`SELECT COUNT(*) FILTER (WHERE phone ~ '^[0-9]{8,}$')::int AS phones, COUNT(*)::int AS registrations,
+    (SELECT COUNT(*)::int FROM users WHERE role = 'scanner' AND active = 1) AS scanners FROM registrations`));
+});
+A.post("/privacy/disable-scanners", jsonSmall, async (req, res) => {
+  if (req.body?.confirm !== "NONAKTIFKAN") return bad(res, "Ketik NONAKTIFKAN untuk konfirmasi.");
+  const r = await query("UPDATE users SET active = 0 WHERE role = 'scanner' AND active = 1");
+  await query("DELETE FROM auth_tokens WHERE user_id IN (SELECT id FROM users WHERE role = 'scanner')");
+  res.json({ disabled: r.rowCount });
+});
+A.post("/privacy/purge-phones", jsonSmall, async (req, res) => {
+  if (req.body?.confirm !== "HAPUS") return bad(res, 'Ketik HAPUS untuk konfirmasi.');
+  const r = await query("UPDATE registrations SET phone = '-' WHERE phone != '-'");
+  res.json({ cleared: r.rowCount });
 });
 
 // --- Export CSV ---
@@ -768,13 +822,13 @@ scanner.post("/sync", express.json({ limit: "2mb" }), h(async (req, res) => {
   if (valid.length) {
     const pids = [...new Set(valid.map((v) => v.pid))], sids = [...new Set(valid.map((v) => v.sid))];
     const [knownP, knownS] = await Promise.all([
-      many("SELECT id FROM participants WHERE id = ANY($1::int[])", [pids]),
+      many("SELECT p.id FROM participants p JOIN registrations r ON r.id = p.registration_id AND r.status = 'lunas' WHERE p.id = ANY($1::int[])", [pids]),
       many("SELECT id FROM sessions WHERE id = ANY($1::int[])", [sids]),
     ]);
     const okP = new Set(knownP.map((x) => x.id)), okS = new Set(knownS.map((x) => x.id));
     await tx(async (q) => {
       for (const v of valid) {
-        if (!okP.has(v.pid)) { rejected.push({ local_id: v.lid, reason: "Peserta sudah dihapus dari sistem" }); continue; }
+        if (!okP.has(v.pid)) { rejected.push({ local_id: v.lid, reason: "Peserta tidak ditemukan atau belum lunas" }); continue; }
         if (!okS.has(v.sid)) { rejected.push({ local_id: v.lid, reason: "Sesi sudah dihapus dari sistem" }); continue; }
         const ins = await q(`INSERT INTO attendance (participant_id, session_id, scanned_at, method, device_id, user_id) VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (participant_id, session_id) DO NOTHING`, [v.pid, v.sid, v.t, v.method, device, req.user.id]);
@@ -802,11 +856,12 @@ app.use("/api/scanner", scanner);
 app.use("/api", (req, res) => bad(res, "Alamat API tidak dikenal.", 404));
 
 // ---------------------------------------------------------------------------
-// FILE STATIS (hanya di laptop/VPS; di Vercel dilayani CDN dari folder public/)
+// FILE STATIS (hanya di laptop; di Vercel dilayani CDN dari folder public/)
 // ---------------------------------------------------------------------------
 app.use("/uploads", express.static(storage.UPLOAD_DIR, { maxAge: "7d", immutable: true, fallthrough: false }));
 // Dashboard dan halaman cetak hanya untuk admin yang sudah login; selain itu diarahkan ke halaman login.
-app.get(["/admin", "/admin/", "/admin/index.html", "/admin/print.html", "/admin/wallboard.html"], h(async (req, res, next) => {
+app.get("/admin/wallboard.html", (req, res) => res.redirect(302, "/wallboard.html"));
+app.get(["/admin", "/admin/", "/admin/index.html", "/admin/print.html"], h(async (req, res, next) => {
   await init();
   const u = await auth.userFromRequest(req);
   if (u && u.role === "admin") return next();
