@@ -78,8 +78,10 @@ app.get("/api/public", h(async (req, res) => {
       contests: (await contestResults()).map((c) => ({ contest: c.contest, rank: c.rank, winner: c.winner, church: c.church })),
     };
   }
+  const finance = s.finance_public ? await financeSummary() : null;
   res.set("Cache-Control", "no-cache");
-  res.json({ settings: publicSettings(s), churches, lineup, sessions, photos, stats: counts, results });
+  res.json({ settings: publicSettings(s), churches, lineup, sessions, photos, stats: counts, results,
+    finance: finance && { income: finance.income, expense: finance.expense, balance: finance.balance, income_by_category: finance.income_by_category, expense_by_category: finance.expense_by_category, updated_at: finance.updated_at } });
 }));
 
 function parseParticipants(list, res) {
@@ -145,6 +147,8 @@ async function insertParticipant(q, registrationId, churchId, regCode, seq, p) {
   return r.rows[0].id;
 }
 
+// 08xx → 628xx untuk tautan wa.me
+const waIntl = (p) => { const n = normalizePhone(p); return n ? "62" + n.slice(1) : ""; };
 // Nomor WA di halaman status (bisa dibuka siapa pun yang memegang tautan) disamarkan: 0812****7890
 const maskPhone = (p) => (/^\d{8,}$/.test(String(p || "")) ? p.slice(0, 4) + "****" + p.slice(-4) : "-");
 async function registrationView(reg, { includeQr }) {
@@ -167,7 +171,9 @@ app.get("/api/status/:token", h(async (req, res) => {
   const reg = await one("SELECT * FROM registrations WHERE status_token = $1", [String(req.params.token)]);
   if (!reg) return bad(res, "Pendaftaran tidak ditemukan. Periksa kembali tautan status kamu.", 404);
   res.set("Cache-Control", "no-store");
-  res.json({ ...(await registrationView(reg, { includeQr: true })), payment_note: (await getSettings()).payment_note });
+  const s = await getSettings();
+  res.json({ ...(await registrationView(reg, { includeQr: true })), payment_note: s.payment_note,
+    payment: { bank_name: s.bank_name, bank_account: s.bank_account, bank_holder: s.bank_holder, whatsapp: waIntl(s.committee_whatsapp) } });
 }));
 
 // Cek status cukup dengan nomor WhatsApp yang dipakai saat mendaftar (lengkap). Dibatasi ketat per IP
@@ -241,6 +247,47 @@ app.post("/api/visit", rateLimit({ name: "visit", windowMs: 10 * 60e3, max: 120 
     ON CONFLICT (vid, day) DO UPDATE SET views = site_visits.views + 1`, [vid, wibDay(), Date.now()]);
   res.status(204).end();
 }));
+
+// ---------------------------------------------------------------------------
+// KEUANGAN
+// ---------------------------------------------------------------------------
+const FIN_CATS = {
+  in: ["Persembahan", "Sumbangan pemuda", "Sumbangan KK", "Sponsor", "Uang pendaftaran", "Lain-lain"],
+  out: ["Konsumsi", "Transportasi", "Perlengkapan", "Dekorasi", "Ucapan terima kasih", "Sewa-menyewa", "Retribusi", "Listrik", "Musik", "Multimedia", "Lain-lain"],
+};
+// "2027-07-06T19:30" dari form dianggap WIB; ISO lengkap diterima apa adanya
+function parseWib(v) {
+  const s = String(v || "").trim();
+  const t = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(s) ? new Date(s + "+07:00") : new Date(s);
+  if (Number.isNaN(t.getTime()) || t.getUTCFullYear() < 2020 || t.getUTCFullYear() > 2100) return null;
+  return t.toISOString();
+}
+// Uang pendaftaran otomatis: setiap pendaftaran lunas = jumlah peserta × biaya per peserta saat itu
+function registrationIncome() {
+  return many(`SELECT r.id, r.code, c.name AS church, COALESCE(r.confirmed_at, r.created_at) AS at, r.fee_per_person AS fee,
+      (SELECT COUNT(*)::int FROM participants WHERE registration_id = r.id) AS n
+    FROM registrations r JOIN churches c ON c.id = r.church_id WHERE r.status = 'lunas' ORDER BY COALESCE(r.confirmed_at, r.created_at) DESC`)
+    .then((rows) => rows.map((r) => ({ ...r, amount: r.n * r.fee })).filter((r) => r.amount > 0));
+}
+async function financeSummary() {
+  const [cats, regs, last] = await Promise.all([
+    many("SELECT kind, category, SUM(amount)::float8 AS total, COUNT(*)::int AS n FROM finance_entries GROUP BY kind, category"),
+    registrationIncome(),
+    one("SELECT MAX(created_at) AS t FROM finance_entries"),
+  ]);
+  const regTotal = regs.reduce((t, r) => t + r.amount, 0);
+  const byCat = (kind) => {
+    const m = new Map();
+    for (const c of cats.filter((x) => x.kind === kind)) m.set(c.category, (m.get(c.category) || 0) + c.total);
+    if (kind === "in" && regTotal) m.set("Uang pendaftaran", (m.get("Uang pendaftaran") || 0) + regTotal);
+    return [...m].map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+  };
+  const income_by_category = byCat("in"), expense_by_category = byCat("out");
+  const income = income_by_category.reduce((t, c) => t + c.total, 0), expense = expense_by_category.reduce((t, c) => t + c.total, 0);
+  const lastReg = regs[0]?.at;
+  return { income, expense, balance: income - expense, registration_income: regTotal, registration_count: regs.length,
+    income_by_category, expense_by_category, updated_at: [last?.t, lastReg].filter(Boolean).sort().pop() || null };
+}
 
 // ---------------------------------------------------------------------------
 // LOGIN
@@ -341,7 +388,7 @@ A.get("/settings", async (req, res) => res.json(await getSettings()));
 A.put("/settings", jsonSmall, async (req, res) => {
   const b = req.body || {};
   const patch = {};
-  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_title", "spotify_url", "code_prefix"]; // music_url hanya lewat unggah lagu
+  const text = ["event_name", "title_line1", "title_line2", "tagline", "dates_label", "location", "payment_note", "contact", "music_title", "spotify_url", "code_prefix", "bank_name", "bank_holder"]; // music_url hanya lewat unggah lagu
   for (const k of text) if (k in b) patch[k] = cleanText(b[k], k === "payment_note" ? 400 : 200);
   for (const k of ["start_at", "end_at"]) if (k in b) {
     if (Number.isNaN(new Date(b[k]).getTime())) return bad(res, "Format tanggal tidak valid.");
@@ -352,7 +399,18 @@ A.put("/settings", jsonSmall, async (req, res) => {
     if (!Number.isFinite(n) || n < 0) return bad(res, "Angka tidak valid.");
     patch[k] = Math.round(n);
   }
-  for (const k of ["registration_open", "results_published"]) if (k in b) patch[k] = !!b[k];
+  for (const k of ["registration_open", "results_published", "finance_public"]) if (k in b) patch[k] = !!b[k];
+  if ("bank_account" in b) {
+    const acc = cleanText(b.bank_account, 40);
+    if (acc && !/^[0-9][0-9 .-]{3,38}[0-9]$/.test(acc)) return bad(res, "Nomor rekening hanya boleh angka (boleh spasi/titik/strip).");
+    patch.bank_account = acc;
+  }
+  if ("committee_whatsapp" in b) {
+    const raw = cleanText(b.committee_whatsapp, 30);
+    const wa = raw ? normalizePhone(raw) : "";
+    if (raw && !wa) return bad(res, "Nomor WhatsApp panitia tidak valid. Gunakan format 08xxxxxxxxxx.");
+    patch.committee_whatsapp = wa;
+  }
   if ("gallery_drive_url" in b) {
     const u = cleanText(b.gallery_drive_url, 400);
     if (u && !httpsUrl(u)) return bad(res, "Link Google Drive harus diawali https://");
@@ -749,6 +807,40 @@ A.put("/users/:id", jsonSmall, async (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Keuangan ---
+A.get("/finance", async (req, res) => {
+  const [summary, entries, regs] = await Promise.all([
+    financeSummary(),
+    many(`SELECT f.id, f.kind, f.category, f.amount::float8 AS amount, f.at, f.note, f.created_at, u.name AS created_by_name
+          FROM finance_entries f LEFT JOIN users u ON u.id = f.created_by ORDER BY f.at DESC, f.id DESC`),
+    registrationIncome(),
+  ]);
+  res.json({ summary, entries, registrations: regs, categories: FIN_CATS });
+});
+function financeBody(b) {
+  const kind = b?.kind === "in" ? "in" : b?.kind === "out" ? "out" : null;
+  if (!kind) return { error: "Pilih pemasukan atau pengeluaran." };
+  const category = FIN_CATS[kind].find((c) => c === b.category);
+  if (!category) return { error: "Pilih jenis " + (kind === "in" ? "pemasukan." : "pengeluaran.") };
+  const amount = Math.round(Number(String(b.amount ?? "").replace(/[^0-9]/g, "")));
+  if (!Number.isFinite(amount) || amount < 1 || amount > 1e12) return { error: "Isi jumlah dalam rupiah (lebih dari 0)." };
+  const at = parseWib(b.at);
+  if (!at) return { error: "Isi tanggal dan waktu." };
+  return { v: [kind, category, amount, at, cleanText(b.note, 300)] };
+}
+A.post("/finance", jsonSmall, async (req, res) => {
+  const r = financeBody(req.body); if (r.error) return bad(res, r.error);
+  const row = await one("INSERT INTO finance_entries (kind, category, amount, at, note, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", [...r.v, req.user.id]);
+  res.status(201).json({ id: row.id });
+});
+A.put("/finance/:id", jsonSmall, async (req, res) => {
+  const r = financeBody(req.body); if (r.error) return bad(res, r.error);
+  const u = await query("UPDATE finance_entries SET kind=$1, category=$2, amount=$3, at=$4, note=$5 WHERE id=$6", [...r.v, intId(req.params.id)]);
+  if (!u.rowCount) return bad(res, "Catatan tidak ditemukan.", 404);
+  res.json({ ok: true });
+});
+A.del("/finance/:id", async (req, res) => { await query("DELETE FROM finance_entries WHERE id = $1", [intId(req.params.id)]); res.json({ ok: true }); });
+
 // --- Privasi: hapus nomor WhatsApp setelah acara (nama & kehadiran tetap untuk laporan) ---
 A.get("/privacy", async (req, res) => {
   res.json(await one(`SELECT COUNT(*) FILTER (WHERE phone ~ '^[0-9]{8,}$')::int AS phones, COUNT(*)::int AS registrations,
@@ -784,6 +876,15 @@ A.get("/export/attendance.csv", async (req, res) => {
     FROM attendance a JOIN participants p ON p.id = a.participant_id JOIN churches c ON c.id = p.church_id JOIN sessions s ON s.id = a.session_id LEFT JOIN users u ON u.id = a.user_id
     ORDER BY s.day, s.starts_at, a.scanned_at`);
   sendCsv(res, "kehadiran.csv", rows, ["hari", "sesi", "jenis", "kode_peserta", "nama", "gereja", "waktu_scan", "metode", "petugas", "perangkat"]);
+});
+A.get("/export/finance.csv", async (req, res) => {
+  const [entries, regs] = await Promise.all([many("SELECT * FROM finance_entries ORDER BY at, id"), registrationIncome()]);
+  const wib = (iso) => new Date(new Date(iso).getTime() + 7 * 36e5).toISOString().replace("T", " ").slice(0, 16);
+  const rows = [
+    ...entries.map((e) => ({ waktu_wib: wib(e.at), arus: e.kind === "in" ? "Pemasukan" : "Pengeluaran", jenis: e.category, jumlah: Number(e.amount), keterangan: e.note })),
+    ...regs.map((r) => ({ waktu_wib: wib(r.at), arus: "Pemasukan", jenis: "Uang pendaftaran", jumlah: r.amount, keterangan: `${r.code} · ${r.church} · ${r.n} × ${r.fee}` })),
+  ].sort((a, b) => a.waktu_wib.localeCompare(b.waktu_wib));
+  sendCsv(res, "keuangan.csv", rows, ["waktu_wib", "arus", "jenis", "jumlah", "keterangan"]);
 });
 A.get("/export/rankings.csv", async (req, res) => {
   const rows = (await churchRankings()).all.map((r) => ({ gereja: r.church, kota: r.city, peserta_lunas: r.confirmed, peserta_hadir: r.present, scan_seminar: r.seminar_scans, seminar_per_peserta: r.seminar_per_person, persen_kehadiran_seminar: r.seminar_rate, ikut_nominasi_aktif: r.eligible_activity ? "ya" : "tidak" }));

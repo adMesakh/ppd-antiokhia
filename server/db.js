@@ -101,6 +101,18 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 CREATE INDEX IF NOT EXISTS attendance_session ON attendance (session_id);
 CREATE INDEX IF NOT EXISTS attendance_received ON attendance (received_at);
+-- Keuangan panitia: pemasukan & pengeluaran yang dicatat manual. Uang pendaftaran dihitung otomatis dari pendaftaran lunas.
+CREATE TABLE IF NOT EXISTS finance_entries (
+  id SERIAL PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('in', 'out')),
+  category TEXT NOT NULL,
+  amount BIGINT NOT NULL CHECK (amount > 0),
+  at TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+);
+CREATE INDEX IF NOT EXISTS finance_entries_at ON finance_entries (at);
 CREATE TABLE IF NOT EXISTS contest_results (
   id SERIAL PRIMARY KEY,
   contest TEXT NOT NULL,
@@ -119,9 +131,14 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS topic TEXT NOT NULL DEFAULT '';
 ALTER TABLE lineup ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
--- Catatan pembayaran bawaan lama menyebut "kode pendaftaran"; sekarang cukup nomor WhatsApp
-UPDATE settings SET value = '"Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar."'
-  WHERE key = 'payment_note' AND value = '"Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar."';
+-- Sekali saja (ditandai mig_fee55): uang pendaftaran sementara Rp55.000 (dulu bawaan 0) untuk pengaturan & pendaftaran
+-- yang masih 0, dan catatan pembayaran bawaan diganti ke transfer. Tidak diulang, jadi pilihan admin sesudahnya tidak ditimpa.
+UPDATE settings SET value = '55000' WHERE key = 'fee_per_person' AND value = '0' AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'mig_fee55');
+UPDATE registrations SET fee_per_person = 55000 WHERE fee_per_person = 0 AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'mig_fee55');
+UPDATE settings SET value = '"Transfer sesuai total di bawah, lalu kirim bukti transfer ke WhatsApp panitia."'
+  WHERE key = 'payment_note' AND value IN ('"Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar."', '"Bayar tunai ke bendahara panitia. Sebutkan kode pendaftaran saat membayar."')
+  AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'mig_fee55');
+INSERT INTO settings (key, value) VALUES ('mig_fee55', 'true') ON CONFLICT (key) DO NOTHING;
 -- Usia tidak lagi diminta saat pendaftaran
 ALTER TABLE participants ALTER COLUMN age DROP NOT NULL;
 -- pengunjung website: ID acak per perangkat (tanpa IP / data pribadi), satu baris per perangkat per hari (WIB)
@@ -232,8 +249,13 @@ const DEFAULT_SETTINGS = {
   location: "Kalimantan Barat",
   est_churches: 40,
   est_participants: 0,
-  fee_per_person: 0,
-  payment_note: "Bayar tunai ke bendahara panitia. Sebutkan nomor WhatsApp yang dipakai saat mendaftar.",
+  fee_per_person: 55000,
+  payment_note: "Transfer sesuai total di bawah, lalu kirim bukti transfer ke WhatsApp panitia.",
+  bank_name: "",
+  bank_account: "",
+  bank_holder: "",
+  committee_whatsapp: "",
+  finance_public: true,
   contact: "",
   registration_open: true,
   results_published: false,

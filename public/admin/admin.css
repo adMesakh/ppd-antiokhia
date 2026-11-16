@@ -187,3 +187,35 @@ tr.clickable:hover td{background:rgba(0,0,0,.025)}
 .bar i{display:block;height:100%;background:var(--stage)}
 label.inline{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-weight:600;font-size:.86rem;color:var(--muted)}
 .wall-btn{background:var(--tape,#F5C518);color:#1B1814;border-color:transparent;font-weight:700}
+/* keuangan */
+.fin-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fin-tiles .tile span{color:var(--muted);font-weight:600;font-size:.86rem}
+.fin-tiles .tile b{font-size:clamp(1.5rem,2.6vw,2.2rem)}
+.fin-tiles .tile small{color:var(--muted)}
+.fin-tiles .tile.saldo{background:var(--stage);color:#FFF;border-color:var(--stage)}
+.fin-tiles .tile.saldo span,.fin-tiles .tile.saldo small{color:#CFC7B9}
+.fin-tiles .tile.saldo b{color:#9BE3B4}
+.fin-tiles .tile.saldo.minus b{color:#FF9A8F}
+b.pos{color:#2E7D4F} b.neg{color:var(--red)}
+.fin-vs{display:grid;gap:14px}
+.fin-vs>div{display:grid;grid-template-columns:96px minmax(0,1fr) auto;align-items:center;gap:10px}
+.fin-vs>div>span{color:var(--muted);font-weight:600;font-size:.88rem}
+.fin-vs>div>b{font-variant-numeric:tabular-nums}
+.fin-vs>div>div{grid-column:2}
+.fin-stack{display:flex;height:22px;border-radius:5px;overflow:hidden;background:var(--line);min-width:4px}
+.fin-stack i{display:block;height:100%}
+.fin-legend{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:.86rem}
+.fin-legend li{display:flex;justify-content:space-between;gap:10px}
+.fin-legend li span{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.fin-legend li span i{width:10px;height:10px;border-radius:3px;flex:none}
+.fin-legend li b{font-variant-numeric:tabular-nums;font-weight:600}
+.fin-line{width:100%;height:auto;display:block}
+.fin-top{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:t}
+.fin-top li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);counter-increment:t}
+.fin-top li:last-child{border-bottom:0}
+.fin-top li>div{display:grid;gap:2px;min-width:0}
+.fin-top li>div::before{content:counter(t);display:none}
+.fin-top li>div span{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fin-top li .num{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{border-top:2px solid var(--line-2)}
+@media (max-width:900px){.fin-tiles{grid-template-columns:1fr}}

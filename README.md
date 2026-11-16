@@ -9,7 +9,7 @@ Panduan untuk panitia (tanpa istilah teknis) ada di **[PANDUAN.md](PANDUAN.md)**
 | `/` | Publik | Info acara, jadwal, pembicara, dokumentasi |
 | `/daftar.html` | Pendaftar | Daftar sendiri atau rombongan, cek status |
 | `/status.html?t=…` | Pendaftar | Status pembayaran dan pass QR |
-| `/admin/` | Panitia | Pendaftaran & pembayaran tunai, peserta & QR, gereja, jadwal & kehadiran, hasil, galeri, konten, akun |
+| `/admin/` | Panitia | Pendaftaran & pembayaran, keuangan, peserta & QR, gereja, jadwal & kehadiran, hasil, galeri, konten, akun |
 | `/scan/` | Petugas (HP Android) | Scanner QR yang tetap jalan tanpa internet, sinkron otomatis |
 | `/wallboard.html` | TV/monitor | Ringkasan pendaftaran dan acara yang sedang berlangsung |
 

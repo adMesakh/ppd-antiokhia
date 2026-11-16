@@ -75,8 +75,14 @@ async function api(method, url, body, cookie) {
     await addSession("Seminar 2: Panggilan", "seminar", 2, "09:00");
     check((await api("GET", "/api/admin/sessions", null, cookie)).data.length === 3, "Admin membuat 3 sesi lewat form");
 
+    await admin.goto(BASE + "/admin/#keuangan"); await admin.waitForSelector("#payF");
+    check(await admin.inputValue("#payF [name=fee_per_person]") === "55000", "Uang pendaftaran bawaan Rp55.000");
+    await admin.fill("#payF [name=bank_name]", "BRI"); await admin.fill("#payF [name=bank_account]", "0123 4567 8901 234");
+    await admin.fill("#payF [name=bank_holder]", "Panitia PPD Antiokhia"); await admin.fill("#payF [name=committee_whatsapp]", "0812-0000-1111");
+    await admin.click("#payF button.primary"); await admin.waitForSelector("#toast:has-text(\"Tersimpan\")");
+    check((await api("PUT", "/api/admin/settings", { bank_account: "abc123" }, cookie)).status === 400 && (await api("PUT", "/api/admin/settings", { committee_whatsapp: "12" }, cookie)).status === 400, "Nomor rekening & WhatsApp panitia divalidasi");
     await admin.goto(BASE + "/admin/#konten");
-    await admin.fill("[name=fee_per_person]", "150000");
+    check(!(await admin.$("#setF [name=fee_per_person]")), "Biaya per peserta pindah ke menu Keuangan");
     await admin.fill("[name=contact]", "Panitia · 0812-0000-0000");
     await admin.click("#setF button.primary");
     await admin.waitForSelector("#toast:has-text(\"Konten disimpan\")");
@@ -124,7 +130,7 @@ async function api(method, url, body, cookie) {
     await admin.waitForFunction((old) => { const a = document.querySelector(".music-now audio"); return a && a.getAttribute("src") !== old; }, S3.music_url);
     await admin.fill("#luF [name=name]", "Bintang Tamu Contoh"); await admin.selectOption("#luF [name=tier]", "tamu"); await admin.click("#luF button");
     await admin.waitForTimeout(400);
-    check((await api("GET", "/api/public")).data.settings.fee_per_person === 150000, "Biaya per peserta tersimpan");
+    check((await api("GET", "/api/public")).data.settings.fee_per_person === 55000, "Biaya per peserta tersimpan");
 
     // ---------- Pendaftaran publik ----------
     const pubCtx = await browser.newContext({ ...devices["Pixel 7"] });
@@ -185,7 +191,11 @@ async function api(method, url, body, cookie) {
     await pub.waitForSelector(".code");
     const regCode = (await pub.locator(".code").textContent()).trim();
     check(/^PPD27-[A-Z0-9]{5}$/.test(regCode) && /Menunggu/.test(await pub.textContent(".pill")), `Pendaftaran terkirim dengan kode ${regCode}, status menunggu`);
-    check(/450\.000/.test(await pub.textContent("#box")), "Total tagihan 3 × Rp150.000 tampil");
+    const thanks = await pub.evaluate(() => ({ h: document.querySelector(".thanks h2")?.textContent || "", total: document.querySelector(".pay-total b")?.textContent || "", box: document.querySelector("#box").innerText, wa: document.querySelector(".wa-btn")?.getAttribute("href") || "" }));
+    check(/Terima kasih/.test(thanks.h) && thanks.total === "Rp165.000", `Halaman terima kasih: total transfer ${thanks.total} (3 × Rp55.000)`);
+    check(/BRI/.test(thanks.box) && /0123 4567 8901 234/.test(thanks.box) && /Panitia PPD Antiokhia/.test(thanks.box), "Halaman terima kasih menampilkan bank, nomor rekening, dan pemilik rekening");
+    const waUrl = new URL(thanks.wa);
+    check(waUrl.host === "wa.me" && waUrl.pathname === "/6281200001111" && waUrl.searchParams.get("text").includes(regCode) && waUrl.searchParams.get("text").includes("Rp165.000"), "Tombol WhatsApp panitia berisi pesan siap kirim (kode, total)");
     await pub.screenshot({ path: path.join(SHOTS, "status-menunggu.png"), fullPage: true });
 
     // cek status lewat formulir (kode + WA)
@@ -225,6 +235,50 @@ async function api(method, url, body, cookie) {
     await api("POST", "/api/admin/registrations", { church_id: cid("GKII"), coordinator: "Andre", phone: "081211112222", status: "lunas", participants: mk(8, "Peserta GKII") }, cookie);
     await api("POST", "/api/admin/registrations", { church_id: cid("GBI"), coordinator: "Sinta", phone: "081233334444", status: "lunas", participants: mk(5, "Peserta GBI") }, cookie);
     await api("POST", "/api/admin/registrations", { church_id: cid("GKE"), coordinator: "Daniel", phone: "081255556666", status: "menunggu", participants: mk(4, "Peserta GKE") }, cookie);
+
+    // ---------- Keuangan ----------
+    let fin = (await api("GET", "/api/admin/finance", null, cookie)).data;
+    check(fin.summary.registration_income === 16 * 55000 && fin.summary.registration_count === 3 && fin.summary.income === 880000,
+      "Uang pendaftaran masuk otomatis dari 3 pendaftaran lunas (16 × Rp55.000 = Rp880.000)");
+    await admin.goto(BASE + "/admin/#keuangan"); await admin.waitForSelector("#addIn");
+    const addFin = async (btn, kind, cat, amount, note) => {
+      await admin.click(btn); await admin.waitForSelector("dialog[open] #ff");
+      await admin.selectOption("#ffCat", cat); await admin.fill("#ffAmt", amount); await admin.fill("#ff [name=note]", note);
+      await admin.click("#ff button.primary"); await admin.waitForSelector("dialog[open]", { state: "detached" }).catch(() => {}); await admin.waitForSelector("#addIn");
+    };
+    await addFin("#addIn", "in", "Persembahan", "2500000", "Persembahan ibadah pembukaan");
+    await addFin("#addIn", "in", "Sponsor", "5.000.000", "Toko Sinar Jaya");
+    await addFin("#addOut", "out", "Konsumsi", "3200000", "Makan 4 hari");
+    await addFin("#addOut", "out", "Sewa-menyewa", "1500000", "Sound system");
+    await addFin("#addOut", "out", "Transportasi", "750000", "Bus pemuda");
+    fin = (await api("GET", "/api/admin/finance", null, cookie)).data;
+    check(fin.summary.income === 880000 + 7500000 && fin.summary.expense === 5450000 && fin.summary.balance === 8380000 - 5450000,
+      `Pemasukan & pengeluaran lewat form: masuk ${fin.summary.income.toLocaleString("id-ID")}, keluar ${fin.summary.expense.toLocaleString("id-ID")}, saldo ${fin.summary.balance.toLocaleString("id-ID")}`);
+    const fv = await admin.evaluate(() => ({ tiles: [...document.querySelectorAll(".fin-tiles .tile b")].map((b) => b.textContent), top: [...document.querySelectorAll(".fin-top")].map((o) => o.children.length), rows: document.querySelectorAll("#finTable tbody tr").length, firstTopIn: document.querySelector(".fin-top li .num")?.textContent }));
+    check(fv.tiles.join("|") === "Rp8.380.000|Rp5.450.000|Rp2.930.000" && fv.firstTopIn === "Rp5.000.000" && fv.rows === 8, `Dashboard keuangan: kartu total, top pemasukan/pengeluaran, ${fv.rows} baris rincian`);
+    await admin.check("[name=fintab][value=out]", { force: true });
+    check(await admin.locator("#finTable tbody tr").count() === 3, "Tab Pengeluaran hanya menampilkan pengeluaran");
+    await admin.screenshot({ path: path.join(SHOTS, "admin-keuangan.png"), fullPage: true });
+    const bad1 = await api("POST", "/api/admin/finance", { kind: "out", category: "Jalan-jalan", amount: 1000, at: "2027-07-06T10:00" }, cookie);
+    const bad2 = await api("POST", "/api/admin/finance", { kind: "in", category: "Sponsor", amount: 0, at: "2027-07-06T10:00" }, cookie);
+    check(bad1.status === 400 && bad2.status === 400, "Jenis dan jumlah transaksi divalidasi");
+    const sewa = fin.entries.find((e) => e.category === "Sewa-menyewa");
+    await api("PUT", "/api/admin/finance/" + sewa.id, { kind: "out", category: "Sewa-menyewa", amount: 1800000, at: "2027-07-05T09:00", note: "Sound system + genset" }, cookie);
+    const tr = fin.entries.find((e) => e.category === "Transportasi");
+    await api("DELETE", "/api/admin/finance/" + tr.id, null, cookie);
+    fin = (await api("GET", "/api/admin/finance", null, cookie)).data;
+    check(fin.summary.expense === 3200000 + 1800000 && fin.entries.find((e) => e.id === sewa.id).at === "2027-07-05T02:00:00.000Z", "Transaksi bisa diubah (waktu WIB tersimpan benar) dan dihapus");
+    const pubFin = (await api("GET", "/api/public")).data.finance;
+    check(pubFin && pubFin.balance === fin.summary.balance && !JSON.stringify(pubFin).includes("Toko Sinar Jaya"), "Ringkasan keuangan publik tanpa rincian keterangan transaksi");
+    const lp = await (await browser.newContext()).newPage();
+    await lp.goto(BASE + "/"); await lp.waitForSelector("#keuangan:not([hidden])");
+    check(await lp.textContent("#finBal") === "Rp" + fin.summary.balance.toLocaleString("id-ID") && await lp.locator("#finInList li").count() === 3, "Landing page menampilkan laporan keuangan (pemasukan, pengeluaran, saldo)");
+    await lp.locator("#keuangan").screenshot({ path: path.join(SHOTS, "landing-keuangan.png") });
+    await api("PUT", "/api/admin/settings", { finance_public: false }, cookie);
+    check((await api("GET", "/api/public")).data.finance === null, "Ringkasan keuangan bisa disembunyikan dari website");
+    await api("PUT", "/api/admin/settings", { finance_public: true }, cookie);
+    const finCsv = await (await fetch(BASE + "/api/admin/export/finance.csv", { headers: { Cookie: cookie } })).text();
+    check(/Uang pendaftaran/.test(finCsv) && /Sound system \+ genset/.test(finCsv) && finCsv.split("\n").length === 1 + 3 + 4, "Export CSV keuangan berisi transaksi manual + uang pendaftaran");
 
     // ---------- Scanner (HP Android) ----------
     const parts = (await api("GET", "/api/admin/participants?status=lunas", null, cookie)).data;

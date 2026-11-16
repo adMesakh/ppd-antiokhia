@@ -16,7 +16,7 @@
     document.title = "Daftar · " + (S.event_name || "PPD Antiokhia");
     $("#ppEvent").textContent = S.event_name;
     $("#feeText").textContent = S.fee_per_person ? rupiah(S.fee_per_person) : "Menyusul";
-    $("#payNote").textContent = S.payment_note;
+
     if (S.contact) { $("#contact").hidden = false; $("#contact").textContent = "Kontak panitia: " + S.contact; }
     renderChurches();
     updateSum();
