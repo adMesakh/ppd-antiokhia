@@ -101,13 +101,14 @@
       <div class="head"><div><h1>Ringkasan</h1><p class="muted">Kondisi pendaftaran dan kehadiran saat ini.</p></div>
         <div class="head-actions"><a class="btn" href="#pendaftaran">Buka pendaftaran</a><a class="btn primary" href="/admin/print.html" target="_blank">Cetak semua ID card</a></div></div>
       <div class="tiles">
-        <a class="tile ${s.registrations.waiting ? "alert" : ""}" href="#pendaftaran" style="text-decoration:none"><b>${s.registrations.waiting}</b><span>pendaftaran menunggu bayar</span><small>${s.participants.waiting} peserta · ${rupiah(s.money.outstanding)}</small></a>
-        <div class="tile"><b>${s.participants.paid}</b><span>peserta lunas</span><small>${s.registrations.paid} pendaftaran</small></div>
-        <div class="tile"><b>${s.churches.paid}<span style="font-size:1.2rem;color:var(--muted)"> / ${s.churches.total}</span></b><span>gereja sudah lunas</span></div>
-        <div class="tile"><b>${s.participants.pastors}</b><span>gembala sidang</span></div>
-        <div class="tile"><b>${s.participants.male} · ${s.participants.female}</b><span>laki-laki · perempuan</span></div>
-        <div class="tile"><b style="font-size:1.6rem">${rupiah(s.money.received)}</b><span>uang diterima</span></div>
-        <div class="tile"><b>${s.attendance.scans}</b><span>scan kehadiran masuk</span><small>${s.attendance.people} orang · terakhir ${fmtTime(s.attendance.last)}</small></div>
+        ${tile({ label: "Peserta terdaftar", value: s.participants.paid + s.participants.waiting, sub: `${s.registrations.paid + s.registrations.waiting} pendaftaran` })}
+        ${tile({ label: "Menunggu bayar", value: s.registrations.waiting, sub: `${s.participants.waiting} peserta · ${rupiah(s.money.outstanding)}`, cls: s.registrations.waiting ? "alert" : "", href: "#pendaftaran" })}
+        ${tile({ label: "Peserta lunas", value: s.participants.paid, sub: `${s.registrations.paid} pendaftaran` })}
+        ${tile({ label: "Gereja lunas", value: s.churches.paid, of: s.churches.total, sub: "gereja terdaftar" })}
+        ${tile({ label: "Gembala sidang", value: s.participants.pastors, sub: "dari peserta lunas" })}
+        ${tile({ label: "Laki-laki · perempuan", value: `${s.participants.male} · ${s.participants.female}`, sub: "peserta lunas" })}
+        ${tile({ label: "Uang diterima", value: rupiah(s.money.received), sub: "dari pendaftaran lunas" })}
+        ${tile({ label: "Scan kehadiran", value: s.attendance.scans, sub: `${s.attendance.people} orang · terakhir ${fmtTime(s.attendance.last)}` })}
       </div>
       <div class="card"><div class="card-head"><h3>Pendaftaran terbaru</h3><a class="btn sm" href="#pendaftaran">Lihat semua</a></div>
         ${s.recent.length ? `<div class="table-wrap"><table><thead><tr><th>Kode</th><th>Gereja</th><th>Peserta</th><th>Masuk</th><th>Status</th></tr></thead><tbody>
@@ -365,6 +366,11 @@
   const wibLocal = (iso) => { const d = iso ? new Date(iso) : new Date(); return new Date(d.getTime() + 7 * 36e5).toISOString().slice(0, 16); };
   const fmtDate = (iso) => new Date(iso).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   let finTab = "all", finQ = "", finCat = "";
+  // Kartu statistik: label → angka → keterangan, sama di semua halaman.
+  function tile({ label, value, of, sub, cls = "", href }) {
+    const tag = href ? "a" : "div";
+    return `<${tag} class="tile ${cls}"${href ? ` href="${href}"` : ""}><span>${label}</span><b>${value}${of != null ? `<i> / ${of}</i>` : ""}</b>${sub ? `<small>${sub}</small>` : ""}</${tag}>`;
+  }
   VIEWS.keuangan = async () => {
     const F = await GET("/api/admin/finance");
     const S = F.summary, CATS = F.categories;
@@ -379,9 +385,9 @@
       <div class="head"><div><h1>Keuangan</h1><p class="muted">Pemasukan dan pengeluaran panitia. Uang pendaftaran masuk otomatis setiap pendaftaran ditandai lunas.</p></div>
         <div class="head-actions"><a class="btn" href="/api/admin/export/finance.csv">Unduh CSV</a><button class="btn" id="addOut">+ Pengeluaran</button><button class="btn primary" id="addIn">+ Pemasukan</button></div></div>
       <div class="tiles fin-tiles">
-        <div class="tile"><span>Total pemasukan</span><b class="pos">${rupiah(S.income)}</b><small>${S.registration_count ? `termasuk ${rupiah(S.registration_income)} dari ${S.registration_count} pendaftaran lunas` : "belum ada pendaftaran lunas"}</small></div>
-        <div class="tile"><span>Total pengeluaran</span><b class="neg">${rupiah(S.expense)}</b><small>${F.entries.filter((e) => e.kind === "out").length} transaksi</small></div>
-        <div class="tile saldo${S.balance < 0 ? " minus" : ""}"><span>Saldo panitia</span><b>${S.balance < 0 ? "−" : ""}${rupiah(Math.abs(S.balance))}</b><small>${S.balance < 0 ? "pengeluaran melebihi pemasukan" : "pemasukan − pengeluaran"}</small></div>
+        ${tile({ label: "Total pemasukan", value: rupiah(S.income), cls: "pos", sub: S.registration_count ? `termasuk ${rupiah(S.registration_income)} dari ${S.registration_count} pendaftaran lunas` : "belum ada pendaftaran lunas" })}
+        ${tile({ label: "Total pengeluaran", value: rupiah(S.expense), cls: "neg", sub: `${F.entries.filter((e) => e.kind === "out").length} transaksi` })}
+        ${tile({ label: "Saldo panitia", value: (S.balance < 0 ? "−" : "") + rupiah(Math.abs(S.balance)), cls: "saldo" + (S.balance < 0 ? " minus" : ""), sub: S.balance < 0 ? "pengeluaran melebihi pemasukan" : "pemasukan − pengeluaran" })}
       </div>
       <div class="grid2">
         <div class="card"><h3>5 pemasukan terbesar</h3>${topList(top("in"), "Belum ada pemasukan.")}</div>
@@ -590,9 +596,9 @@
       <div class="head"><div><h1>${esc(s.title)}</h1><p class="muted">Hari ${s.day}${s.starts_at ? " · " + esc(s.starts_at) + (s.ends_at ? "–" + esc(s.ends_at) : "") : ""}${s.location ? " · " + esc(s.location) : ""}${s.speaker ? " · " + esc(s.speaker) : ""} · <span class="pill ${s.kind}">${KIND[s.kind]}</span></p></div>
         <div class="head-actions"><button class="btn" id="editS">Ubah sesi</button><button class="btn primary" id="addA">+ Catat manual</button></div></div>
       <div class="tiles">
-        <div class="tile"><b>${people}<span style="font-size:1.2rem;color:var(--muted)"> / ${paidTotal}</span></b><span>peserta hadir</span><small>${pct}% dari peserta lunas</small></div>
-        <div class="tile"><b>${byChurch.filter((x) => x.n).length}<span style="font-size:1.2rem;color:var(--muted)"> / ${byChurch.length}</span></b><span>gereja hadir</span></div>
-        <div class="tile"><b style="font-size:1.4rem">${last ? fmtTime(last) : "—"}</b><span>scan terakhir masuk</span></div>
+        ${tile({ label: "Peserta hadir", value: people, of: paidTotal, sub: `${pct}% dari peserta lunas` })}
+        ${tile({ label: "Gereja hadir", value: byChurch.filter((x) => x.n).length, of: byChurch.length, sub: "gereja dengan peserta lunas" })}
+        ${tile({ label: "Scan terakhir", value: last ? fmtTime(last) : "—", sub: "waktu WIB" })}
       </div>
       ${byChurch.length ? `<div class="card"><h3>Per gereja</h3><div class="bars">${byChurch.map(({ c, n }) => `<div class="bar-row"><span>${esc(c.name)}</span><div class="bar"><i style="width:${Math.round((n / c.paid_participants) * 100)}%"></i></div><span class="num muted">${n} / ${c.paid_participants}</span></div>`).join("")}</div></div>` : ""}
       <div class="toolbar"><select id="aC">${churchOptions(cs, aChurch, "Semua gereja")}</select><span class="muted" id="aCount"></span></div>

@@ -252,6 +252,13 @@ async function api(method, url, body, cookie) {
       `Pemasukan & pengeluaran lewat form: masuk ${fin.summary.income.toLocaleString("id-ID")}, keluar ${fin.summary.expense.toLocaleString("id-ID")}, saldo ${fin.summary.balance.toLocaleString("id-ID")}`);
     const fv = await admin.evaluate(() => ({ tiles: [...document.querySelectorAll(".fin-tiles .tile b")].map((b) => b.textContent), top: [...document.querySelectorAll(".fin-top")].map((o) => o.children.length), rows: document.querySelectorAll("#finTable tbody tr").length, firstTopIn: document.querySelector(".fin-top li .num")?.textContent }));
     check(fv.tiles.join("|") === "Rp8.380.000|Rp5.450.000|Rp2.930.000" && fv.firstTopIn === "Rp5.000.000" && fv.rows === 8, `Dashboard keuangan: kartu total, top pemasukan/pengeluaran, ${fv.rows} baris rincian`);
+    const fit = await admin.evaluate(() => {
+      const bs = [...document.querySelectorAll(".fin-tiles .tile b")], old = bs.map((b) => b.textContent);
+      bs.forEach((b) => (b.textContent = "−Rp12.345.678.900"));
+      const ok = bs.every((b) => b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().height < 40) && new Set([...document.querySelectorAll(".fin-tiles .tile")].map((t) => Math.round(t.getBoundingClientRect().height))).size === 1;
+      bs.forEach((b, i) => (b.textContent = old[i])); return ok;
+    });
+    check(fit, "Kartu statistik muat angka belasan miliar dalam satu baris, tinggi kartu seragam");
     check(!(await admin.$("#payF")) && !(await admin.$("#finLine")) && !(await admin.$(".fin-vs")), "Menu Keuangan tanpa grafik dan tanpa pengaturan pembayaran");
     await admin.selectOption("#finFlow", "out");
     check(await admin.locator("#finTable tbody tr").count() === 3 && await admin.locator("#finCat option").count() === 12, "Filter Uang keluar hanya menampilkan pengeluaran dan jenis pengeluaran");
