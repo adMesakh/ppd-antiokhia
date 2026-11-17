@@ -81,7 +81,7 @@ app.get("/api/public", h(async (req, res) => {
   const finance = s.finance_public ? await financeSummary() : null;
   res.set("Cache-Control", "no-cache");
   res.json({ settings: publicSettings(s), churches, lineup, sessions, photos, stats: counts, results,
-    finance: finance && { income: finance.income, expense: finance.expense, balance: finance.balance, income_by_category: finance.income_by_category, expense_by_category: finance.expense_by_category, updated_at: finance.updated_at } });
+    finance: finance && { income: finance.income, expense: finance.expense, updated_at: finance.updated_at } });
 }));
 
 function parseParticipants(list, res) {

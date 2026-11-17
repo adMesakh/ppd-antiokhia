@@ -75,14 +75,10 @@ async function api(method, url, body, cookie) {
     await addSession("Seminar 2: Panggilan", "seminar", 2, "09:00");
     check((await api("GET", "/api/admin/sessions", null, cookie)).data.length === 3, "Admin membuat 3 sesi lewat form");
 
-    await admin.goto(BASE + "/admin/#keuangan"); await admin.waitForSelector("#payF");
-    check(await admin.inputValue("#payF [name=fee_per_person]") === "55000", "Uang pendaftaran bawaan Rp55.000");
-    await admin.fill("#payF [name=bank_name]", "BRI"); await admin.fill("#payF [name=bank_account]", "0123 4567 8901 234");
-    await admin.fill("#payF [name=bank_holder]", "Panitia PPD Antiokhia"); await admin.fill("#payF [name=committee_whatsapp]", "0812-0000-1111");
-    await admin.click("#payF button.primary"); await admin.waitForSelector("#toast:has-text(\"Tersimpan\")");
+    check((await api("GET", "/api/admin/settings", null, cookie)).data.fee_per_person === 55000, "Uang pendaftaran bawaan Rp55.000");
+    await api("PUT", "/api/admin/settings", { bank_name: "BRI", bank_account: "0123 4567 8901 234", bank_holder: "Panitia PPD Antiokhia", committee_whatsapp: "0812-0000-1111" }, cookie);
     check((await api("PUT", "/api/admin/settings", { bank_account: "abc123" }, cookie)).status === 400 && (await api("PUT", "/api/admin/settings", { committee_whatsapp: "12" }, cookie)).status === 400, "Nomor rekening & WhatsApp panitia divalidasi");
     await admin.goto(BASE + "/admin/#konten");
-    check(!(await admin.$("#setF [name=fee_per_person]")), "Biaya per peserta pindah ke menu Keuangan");
     await admin.fill("[name=contact]", "Panitia · 0812-0000-0000");
     await admin.click("#setF button.primary");
     await admin.waitForSelector("#toast:has-text(\"Konten disimpan\")");
@@ -256,8 +252,12 @@ async function api(method, url, body, cookie) {
       `Pemasukan & pengeluaran lewat form: masuk ${fin.summary.income.toLocaleString("id-ID")}, keluar ${fin.summary.expense.toLocaleString("id-ID")}, saldo ${fin.summary.balance.toLocaleString("id-ID")}`);
     const fv = await admin.evaluate(() => ({ tiles: [...document.querySelectorAll(".fin-tiles .tile b")].map((b) => b.textContent), top: [...document.querySelectorAll(".fin-top")].map((o) => o.children.length), rows: document.querySelectorAll("#finTable tbody tr").length, firstTopIn: document.querySelector(".fin-top li .num")?.textContent }));
     check(fv.tiles.join("|") === "Rp8.380.000|Rp5.450.000|Rp2.930.000" && fv.firstTopIn === "Rp5.000.000" && fv.rows === 8, `Dashboard keuangan: kartu total, top pemasukan/pengeluaran, ${fv.rows} baris rincian`);
-    await admin.check("[name=fintab][value=out]", { force: true });
-    check(await admin.locator("#finTable tbody tr").count() === 3, "Tab Pengeluaran hanya menampilkan pengeluaran");
+    check(!(await admin.$("#payF")) && !(await admin.$("#finLine")) && !(await admin.$(".fin-vs")), "Menu Keuangan tanpa grafik dan tanpa pengaturan pembayaran");
+    await admin.selectOption("#finFlow", "out");
+    check(await admin.locator("#finTable tbody tr").count() === 3 && await admin.locator("#finCat option").count() === 12, "Filter Uang keluar hanya menampilkan pengeluaran dan jenis pengeluaran");
+    await admin.selectOption("#finFlow", "in");
+    check(await admin.locator("#finTable tbody tr").count() === 5, "Filter Uang masuk hanya menampilkan pemasukan");
+    await admin.selectOption("#finFlow", "out");
     await admin.screenshot({ path: path.join(SHOTS, "admin-keuangan.png"), fullPage: true });
     const bad1 = await api("POST", "/api/admin/finance", { kind: "out", category: "Jalan-jalan", amount: 1000, at: "2027-07-06T10:00" }, cookie);
     const bad2 = await api("POST", "/api/admin/finance", { kind: "in", category: "Sponsor", amount: 0, at: "2027-07-06T10:00" }, cookie);
@@ -269,10 +269,10 @@ async function api(method, url, body, cookie) {
     fin = (await api("GET", "/api/admin/finance", null, cookie)).data;
     check(fin.summary.expense === 3200000 + 1800000 && fin.entries.find((e) => e.id === sewa.id).at === "2027-07-05T02:00:00.000Z", "Transaksi bisa diubah (waktu WIB tersimpan benar) dan dihapus");
     const pubFin = (await api("GET", "/api/public")).data.finance;
-    check(pubFin && pubFin.balance === fin.summary.balance && !JSON.stringify(pubFin).includes("Toko Sinar Jaya"), "Ringkasan keuangan publik tanpa rincian keterangan transaksi");
+    check(pubFin && pubFin.income === fin.summary.income && Object.keys(pubFin).sort().join() === "expense,income,updated_at" && !JSON.stringify(pubFin).includes("Toko Sinar Jaya"), "Ringkasan keuangan publik tanpa rincian keterangan transaksi");
     const lp = await (await browser.newContext()).newPage();
     await lp.goto(BASE + "/"); await lp.waitForSelector("#keuangan:not([hidden])");
-    check(await lp.textContent("#finBal") === "Rp" + fin.summary.balance.toLocaleString("id-ID") && await lp.locator("#finInList li").count() === 3, "Landing page menampilkan laporan keuangan (pemasukan, pengeluaran, saldo)");
+    check(await lp.textContent("#finIn") === "Rp" + fin.summary.income.toLocaleString("id-ID") && await lp.textContent("#finOut") === "Rp" + fin.summary.expense.toLocaleString("id-ID") && await lp.locator("#keuangan .fin-kpi").count() === 2, "Landing page hanya menampilkan total pemasukan dan total pengeluaran");
     await lp.locator("#keuangan").screenshot({ path: path.join(SHOTS, "landing-keuangan.png") });
     await api("PUT", "/api/admin/settings", { finance_public: false }, cookie);
     check((await api("GET", "/api/public")).data.finance === null, "Ringkasan keuangan bisa disembunyikan dari website");

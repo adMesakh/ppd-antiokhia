@@ -362,12 +362,11 @@
   // =====================================================================
   // KEUANGAN
   // =====================================================================
-  const FIN_COLORS = ["#E2603A", "#F2A541", "#14110E", "#7A9E7E", "#5B8DEF", "#A87A0E", "#C8382F", "#8E7CC3", "#3FA7A0", "#B5835A", "#6E665B"];
   const wibLocal = (iso) => { const d = iso ? new Date(iso) : new Date(); return new Date(d.getTime() + 7 * 36e5).toISOString().slice(0, 16); };
   const fmtDate = (iso) => new Date(iso).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   let finTab = "all", finQ = "", finCat = "";
   VIEWS.keuangan = async () => {
-    const [F, s] = await Promise.all([GET("/api/admin/finance"), GET("/api/admin/settings")]);
+    const F = await GET("/api/admin/finance");
     const S = F.summary, CATS = F.categories;
     // satu daftar transaksi: catatan manual + uang pendaftaran otomatis
     const rows = [
@@ -376,9 +375,6 @@
     ].sort((a, b) => b.at.localeCompare(a.at));
     const top = (kind) => rows.filter((r) => r.kind === kind).sort((a, b) => b.amount - a.amount).slice(0, 5);
     const topList = (list, empty) => list.length ? `<ol class="fin-top">${list.map((r) => `<li><div><b>${esc(r.category)}</b><span class="muted">${esc(r.note || "—")} · ${fmtDate(r.at)}</span></div><span class="num">${rupiah(r.amount)}</span></li>`).join("")}</ol>` : `<p class="muted">${empty}</p>`;
-    const stack = (list) => { const t = list.reduce((x, c) => x + c.total, 0); return t ? list.map((c, i) => `<i style="width:${(c.total / t) * 100}%;background:${FIN_COLORS[i % FIN_COLORS.length]}" title="${esc(c.category)}: ${rupiah(c.total)}"></i>`).join("") : ""; };
-    const legend = (list) => list.map((c, i) => `<li><span><i style="background:${FIN_COLORS[i % FIN_COLORS.length]}"></i>${esc(c.category)}</span><b>${rupiah(c.total)}</b></li>`).join("");
-    const maxTot = Math.max(S.income, S.expense, 1);
     view.innerHTML = `
       <div class="head"><div><h1>Keuangan</h1><p class="muted">Pemasukan dan pengeluaran panitia. Uang pendaftaran masuk otomatis setiap pendaftaran ditandai lunas.</p></div>
         <div class="head-actions"><a class="btn" href="/api/admin/export/finance.csv">Unduh CSV</a><button class="btn" id="addOut">+ Pengeluaran</button><button class="btn primary" id="addIn">+ Pemasukan</button></div></div>
@@ -388,59 +384,21 @@
         <div class="tile saldo${S.balance < 0 ? " minus" : ""}"><span>Saldo panitia</span><b>${S.balance < 0 ? "−" : ""}${rupiah(Math.abs(S.balance))}</b><small>${S.balance < 0 ? "pengeluaran melebihi pemasukan" : "pemasukan − pengeluaran"}</small></div>
       </div>
       <div class="grid2">
-        <div class="card"><h3>Pemasukan vs pengeluaran</h3>
-          <div class="fin-vs">
-            <div><span>Pemasukan</span><div class="fin-stack" style="width:${(S.income / maxTot) * 100}%">${stack(S.income_by_category)}</div><b>${rupiah(S.income)}</b></div>
-            <div><span>Pengeluaran</span><div class="fin-stack" style="width:${(S.expense / maxTot) * 100}%">${stack(S.expense_by_category)}</div><b>${rupiah(S.expense)}</b></div>
-          </div>
-          <div class="grid2 fin-legends"><ul class="fin-legend">${legend(S.income_by_category) || `<li class="muted">Belum ada pemasukan</li>`}</ul><ul class="fin-legend">${legend(S.expense_by_category) || `<li class="muted">Belum ada pengeluaran</li>`}</ul></div>
-        </div>
-        <div class="card"><h3>Saldo dari waktu ke waktu</h3><svg class="fin-line" id="finLine" role="img" aria-label="Grafik saldo panitia"></svg><p class="muted" id="finLineNote"></p></div>
-      </div>
-      <div class="grid2">
         <div class="card"><h3>5 pemasukan terbesar</h3>${topList(top("in"), "Belum ada pemasukan.")}</div>
         <div class="card"><h3>5 pengeluaran terbesar</h3>${topList(top("out"), "Belum ada pengeluaran.")}</div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Rincian transaksi</h3>
-          <div class="radio-seg" role="radiogroup" aria-label="Tampilkan">
-            ${[["all", "Semua"], ["in", "Pemasukan"], ["out", "Pengeluaran"]].map(([v, l]) => `<label><input type="radio" name="fintab" value="${v}"${finTab === v ? " checked" : ""}>${l}</label>`).join("")}
-          </div></div>
-        <div class="toolbar"><input type="search" id="finQ" placeholder="Cari keterangan" value="${esc(finQ)}"><select id="finCat"><option value="">Semua jenis</option>${[...new Set([...CATS.in, ...CATS.out])].map((c) => `<option${finCat === c ? " selected" : ""}>${esc(c)}</option>`).join("")}</select><span class="muted" id="finCount"></span></div>
+        <h3>Rincian transaksi</h3>
+        <div class="toolbar"><select id="finFlow" aria-label="Filter uang masuk atau keluar">${[["all", "Uang masuk & keluar"], ["in", "Uang masuk"], ["out", "Uang keluar"]].map(([v, l]) => `<option value="${v}"${finTab === v ? " selected" : ""}>${l}</option>`).join("")}</select><select id="finCat" aria-label="Filter jenis"></select><input type="search" id="finQ" placeholder="Cari keterangan" value="${esc(finQ)}"><span class="muted" id="finCount"></span></div>
         <div id="finTable"></div>
-      </div>
-      <form class="card" id="payF">
-        <div class="card-head"><div><h3>Pembayaran pendaftaran</h3><p class="muted">Tampil di halaman terima kasih setelah peserta mendaftar.</p></div>
-          <label class="switch"><input type="checkbox" name="finance_public"${s.finance_public ? " checked" : ""}> Tampilkan ringkasan keuangan di website</label></div>
-        <div class="form-grid">
-          <label>Uang pendaftaran per peserta (Rp)<input name="fee_per_person" inputmode="numeric" value="${s.fee_per_person}"><span class="hint">Berlaku untuk pendaftaran baru</span></label>
-          <label>Bank<input name="bank_name" value="${esc(s.bank_name)}" placeholder="mis. BRI"></label>
-          <label>Nomor rekening<input name="bank_account" inputmode="numeric" value="${esc(s.bank_account)}" placeholder="mis. 1234 5678 9012"></label>
-          <label>Nama pemilik rekening<input name="bank_holder" value="${esc(s.bank_holder)}" placeholder="sesuai buku tabungan"></label>
-          <label>WhatsApp panitia<input name="committee_whatsapp" inputmode="tel" value="${esc(s.committee_whatsapp)}" placeholder="08…"><span class="hint">Peserta mengirim bukti transfer ke nomor ini</span></label>
-          <label class="span2">Catatan pembayaran<input name="payment_note" value="${esc(s.payment_note)}"><span class="hint">Dipakai bila rekening belum diisi</span></label>
-        </div>
-        <div><button class="btn primary">Simpan</button></div>
-      </form>`;
+      </div>`;
 
-    // grafik saldo kumulatif
-    (() => {
-      const svg = $("#finLine"), pts = [...rows].sort((a, b) => a.at.localeCompare(b.at));
-      if (pts.length < 2) { svg.remove(); $("#finLineNote").textContent = "Grafik muncul setelah ada minimal dua transaksi."; return; }
-      let bal = 0; const series = pts.map((r) => ({ t: new Date(r.at).getTime(), v: (bal += r.kind === "in" ? r.amount : -r.amount) }));
-      const W = 560, H = 200, P = { l: 8, r: 8, t: 14, b: 26 };
-      const t0 = series[0].t, t1 = Math.max(series.at(-1).t, t0 + 1), lo = Math.min(0, ...series.map((p) => p.v)), hi = Math.max(1, ...series.map((p) => p.v));
-      const x = (t) => P.l + ((t - t0) / (t1 - t0)) * (W - P.l - P.r), y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
-      const d = series.map((p, i) => (i ? `L${x(p.t)},${y(series[i - 1].v)}L${x(p.t)},${y(p.v)}` : `M${x(p.t)},${y(p.v)}`)).join("");
-      const day = (t) => new Date(t).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short" });
-      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      svg.innerHTML = `<line x1="${P.l}" x2="${W - P.r}" y1="${y(0)}" y2="${y(0)}" stroke="#CFC7B9" stroke-dasharray="4 4"/>
-        <path d="${d}L${W - P.r},${y(series.at(-1).v)}" fill="none" stroke="#14110E" stroke-width="2.5" stroke-linejoin="round"/>
-        <circle cx="${W - P.r}" cy="${y(series.at(-1).v)}" r="4.5" fill="${series.at(-1).v < 0 ? "#C8382F" : "#2E7D4F"}"/>
-        <text x="${P.l}" y="${H - 6}" font-size="12" fill="#6E665B">${day(t0)}</text><text x="${W - P.r}" y="${H - 6}" font-size="12" fill="#6E665B" text-anchor="end">${day(t1)}</text>`;
-      $("#finLineNote").textContent = `Saldo tertinggi ${rupiah(Math.max(...series.map((p) => p.v)))} · saat ini ${series.at(-1).v < 0 ? "−" : ""}${rupiah(Math.abs(series.at(-1).v))}`;
-    })();
-
+    function fillCat() {
+      const opts = finTab === "all" ? [...new Set([...CATS.in, ...CATS.out])] : CATS[finTab];
+      if (finCat && !opts.includes(finCat)) finCat = "";
+      $("#finCat").innerHTML = `<option value="">Semua jenis</option>${opts.map((c) => `<option${finCat === c ? " selected" : ""}>${esc(c)}</option>`).join("")}`;
+    }
+    fillCat();
     function drawT() {
       const q = finQ.trim().toLowerCase();
       const list = rows.filter((r) => (finTab === "all" || r.kind === finTab) && (!finCat || r.category === finCat) && (!q || (r.note + " " + r.category).toLowerCase().includes(q)));
@@ -456,7 +414,7 @@
     drawT();
     $("#finQ").oninput = (e) => { finQ = e.target.value; drawT(); };
     $("#finCat").onchange = (e) => { finCat = e.target.value; drawT(); };
-    view.onchange = (e) => { if (e.target.name === "fintab") { finTab = e.target.value; drawT(); } };
+    $("#finFlow").onchange = (e) => { finTab = e.target.value; fillCat(); drawT(); };
     $("#addIn").onclick = () => financeForm({ kind: "in" }, CATS);
     $("#addOut").onclick = () => financeForm({ kind: "out" }, CATS);
     $("#finTable").onclick = async (e) => {
@@ -468,14 +426,6 @@
         if (!(await confirmBox("Hapus transaksi?", `${r.category} · ${rupiah(r.amount)}`, "Hapus"))) return;
         try { await DEL(`/api/admin/finance/${r.id}`); toast("Transaksi dihapus"); VIEWS.keuangan(); } catch (x) { fail(x); }
       }
-    };
-    $("#payF").onsubmit = async (e) => {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      const v = Object.fromEntries(["bank_name", "bank_account", "bank_holder", "committee_whatsapp", "payment_note"].map((k) => [k, f.get(k)]));
-      v.fee_per_person = Number(String(f.get("fee_per_person")).replace(/[^0-9]/g, "")) || 0;
-      v.finance_public = !!f.get("finance_public");
-      try { await PUT("/api/admin/settings", v); toast("Tersimpan"); VIEWS.keuangan(); } catch (x) { fail(x); }
     };
   };
   function financeForm(r, CATS) {

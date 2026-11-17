@@ -14,7 +14,7 @@ Aplikasinya sudah jadi dan sudah diuji. Yang tersisa adalah hal-hal yang butuh a
 Semua dari `/admin`:
 
 1. **Gereja** → tempel daftar 40+ gereja sekaligus (format `Nama, Kota` per baris, bisa disalin dari Excel).
-2. **Keuangan → Pembayaran pendaftaran** → uang pendaftaran per peserta (sementara Rp55.000), bank, nomor rekening, nama pemilik rekening, dan nomor WhatsApp panitia untuk menerima bukti transfer.
+2. **Pembayaran pendaftaran** (uang pendaftaran sementara Rp55.000 per peserta, rekening, dan WhatsApp panitia) diatur oleh pengelola sistem; kabari bila ada perubahan.
 3. **Konten website** → tanggal & jam mulai/selesai (WIB), lokasi, kontak panitia, lineup pembicara dan bintang tamu beserta fotonya, dan lagu latar (unggah file MP3 di kartu **Lagu latar**).
 4. **Jadwal & kehadiran** → minimal satu sesi *Check-in* (registrasi ulang) dan semua sesi *Seminar*. Hanya sesi Seminar yang dihitung untuk nominasi "gereja paling aktif".
 5. **Hasil & lomba** → atur batas minimal peserta agar gereja ikut nominasi paling aktif (default 5).
@@ -25,7 +25,7 @@ Semua dari `/admin`:
 - **Wallboard TV.** Untuk dicek sendiri: tombol kuning **Wallboard TV** di pojok kanan atas dashboard. Untuk TV/monitor di tempat umum: **Akun & scanner → Layar TV → Buat link layar TV**, lalu buka link itu di browser TV dan klik **Layar penuh**. Link ini hanya bisa menampilkan wallboard (tidak bisa membuka dashboard) dan bisa dicabut kapan saja. Nama dan nomor WA peserta tidak pernah tampil di wallboard.
 
 - Setiap bukti transfer diterima di WhatsApp panitia: cek mutasi rekening, lalu **Pendaftaran → Tandai lunas**. QR peserta langsung terbit di tautan status, dan uang pendaftarannya otomatis tercatat di **Keuangan**.
-- Catat pemasukan lain (persembahan, sumbangan, sponsor) dan semua pengeluaran di **Keuangan → + Pemasukan / + Pengeluaran**. Ringkasannya tampil di website bila saklar "Tampilkan ringkasan keuangan di website" menyala.
+- Catat pemasukan lain (persembahan, sumbangan, sponsor) dan semua pengeluaran di **Keuangan → + Pemasukan / + Pengeluaran**. Total pemasukan dan total pengeluaran tampil di website.
 - Gereja yang mendaftar lewat telepon: **+ Pendaftaran oleh admin** (bisa langsung lunas).
 - Data peserta salah: buka Detail pendaftaran → Ubah.
 

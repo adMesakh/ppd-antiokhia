@@ -84,20 +84,11 @@
   }
 
   // Laporan keuangan ringkas: total dan komposisi per jenis (tanpa rincian transaksi)
-  const FIN_COLORS = ["#FF8A3D", "#FFB37E", "#E2603A", "#F2C14E", "#C9773E", "#8E5B3A", "#D9A57A", "#B5462A", "#F0D2B4", "#7A6A5C", "#5C4B3F"];
   function renderFinance(f) {
     if (!f || (!f.income && !f.expense)) return;
     $("#keuangan").hidden = false;
     $("#finIn").textContent = rupiah(f.income); $("#finOut").textContent = rupiah(f.expense);
-    $("#finBal").textContent = (f.balance < 0 ? "−" : "") + rupiah(Math.abs(f.balance));
     if (f.updated_at) { const d = wib(f.updated_at); $("#finUpdated").textContent = `Diperbarui ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
-    const part = (list, bar, ul, empty) => {
-      const tot = list.reduce((t, c) => t + c.total, 0);
-      $(bar).innerHTML = tot ? list.map((c, i) => `<i style="width:${(c.total / tot) * 100}%;background:${FIN_COLORS[i % FIN_COLORS.length]}" title="${esc(c.category)}"></i>`).join("") : "";
-      $(ul).innerHTML = list.length ? list.map((c, i) => `<li><span><i style="background:${FIN_COLORS[i % FIN_COLORS.length]}"></i>${esc(c.category)}</span><b>${rupiah(c.total)}</b></li>`).join("") : `<li class="muted">${empty}</li>`;
-    };
-    part(f.income_by_category, "#finInBar", "#finInList", "Belum ada pemasukan");
-    part(f.expense_by_category, "#finOutBar", "#finOutList", "Belum ada pengeluaran");
   }
 
   // Foto pembicara dimulai tepat di bawah teks kartu (nama panjang = foto turun), supaya wajah tidak tertutup tulisan.
