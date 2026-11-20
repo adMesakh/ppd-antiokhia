@@ -67,8 +67,8 @@ label .hint,.hint{font-weight:500;color:var(--muted);font-size:12px;line-height:
 .check input{width:16px;height:16px}
 
 /* ---------- layout: sidebar 240px + konten ---------- */
-.app{display:grid;grid-template-columns:var(--side) minmax(0,1fr);min-height:100%}
-.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--bg);padding:16px 12px}
+.app{display:block;min-height:100%;padding-left:var(--side)}
+.side{position:fixed;top:0;left:0;bottom:0;width:var(--side);z-index:30;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--bg);padding:16px 12px}
 .ws{display:flex;align-items:center;gap:10px;padding:4px 8px 16px;margin-bottom:8px;border-bottom:1px solid var(--line);text-decoration:none;min-width:0}
 .ws img{width:32px;height:32px;border-radius:50%;flex:none;border:1px solid var(--line)}
 .ws span{display:grid;min-width:0}
@@ -87,8 +87,9 @@ label .hint,.hint{font-weight:500;color:var(--muted);font-size:12px;line-height:
 .side-foot{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
 .view{padding:24px 24px 64px;display:grid;gap:20px;align-content:start;outline:none;max-width:1440px;width:100%;min-width:0}
 @media (max-width:900px){
-  .app{grid-template-columns:minmax(0,1fr)}
-  .side{position:sticky;top:0;z-index:20;height:auto;padding:8px 12px;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 8px}
+  .app{padding-left:0}
+  .view>.head:first-child{position:static;margin:0;padding:0 0 16px}
+  .side{position:sticky;top:0;bottom:auto;width:auto;z-index:30;height:auto;padding:8px 12px;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 8px}
   .ws{border:0;padding:0;margin:0;flex:1}
   .ws small{display:none}
   .side-foot{display:flex;border:0;padding:0;margin:0}
@@ -102,6 +103,8 @@ label .hint,.hint{font-weight:500;color:var(--muted);font-size:12px;line-height:
 }
 
 /* ---------- header halaman ---------- */
+/* header halaman menempel di atas saat konten di-scroll */
+.view>.head:first-child{position:sticky;top:0;z-index:20;background:var(--bg);margin:-24px -24px 0;padding:24px 24px 16px}
 .head{display:flex;justify-content:space-between;align-items:center;gap:12px 16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line)}
 .head>div:first-child{display:grid;gap:2px;min-width:0}
 .head p.muted{font-size:13px;color:var(--gray);max-width:80ch}

@@ -454,6 +454,11 @@ async function api(method, url, body, cookie) {
     await pg.goto(BASE + "/"); await pg.waitForSelector("#driveWrap:not([hidden])");
     check(await pg.getAttribute("#driveLink", "href") === "https://drive.google.com/drive/folders/contoh123" && await pg.getAttribute("#driveLink", "target") === "_blank",
       "Tombol 'Lihat semua foto' di landing membuka Google Drive di tab baru");
+    await admin.setViewportSize({ width: 1440, height: 700 });
+    await admin.goto(BASE + "/admin/#keuangan"); await admin.waitForSelector("#finTable tbody tr");
+    await admin.mouse.wheel(0, 1500); await admin.waitForTimeout(300);
+    const stuck = await admin.evaluate(() => ({ y: scrollY, side: document.querySelector(".side").getBoundingClientRect().top, head: document.querySelector(".view>.head").getBoundingClientRect().top }));
+    check(stuck.y > 100 && stuck.side === 0 && stuck.head === 0, `Sidebar & header halaman tetap di tempat saat konten di-scroll (scroll ${stuck.y}px)`);
     check(true, "Semua halaman admin terbuka");
 
     // ---------- Wallboard TV + penghitung pengunjung ----------
