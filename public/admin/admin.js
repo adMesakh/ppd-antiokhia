@@ -69,7 +69,7 @@
   }
   function start() {
     $("#app").hidden = false;
-    $("#whoami").textContent = me.name;
+    $("#whoami").textContent = `${me.name} · Admin`;
     route();
   }
 
@@ -79,7 +79,7 @@
   async function route() {
     const [name, arg] = (location.hash.slice(1) || "ringkasan").split("/");
     const fn = VIEWS[name] || VIEWS.ringkasan;
-    $$(".side a").forEach((a) => a.classList.toggle("on", a.dataset.nav === (VIEWS[name] ? name : "ringkasan")));
+    $$(".side-nav a").forEach((a) => a.classList.toggle("on", a.dataset.nav === (VIEWS[name] ? name : "ringkasan")));
     view.onclick = null; view.onchange = null; // lepaskan handler dari halaman sebelumnya
     view.innerHTML = `<p class="muted">Memuat…</p>`;
     try { await fn(arg); } catch (e) { if (e.status !== 401) view.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
@@ -100,7 +100,7 @@
     view.innerHTML = `
       <div class="head"><div><h1>Ringkasan</h1><p class="muted">Kondisi pendaftaran dan kehadiran saat ini.</p></div>
         <div class="head-actions"><a class="btn" href="#pendaftaran">Buka pendaftaran</a><a class="btn primary" href="/admin/print.html" target="_blank">Cetak semua ID card</a></div></div>
-      <div class="tiles">
+      <div class="tiles cols4">
         ${tile({ label: "Peserta terdaftar", value: s.participants.paid + s.participants.waiting, sub: `${s.registrations.paid + s.registrations.waiting} pendaftaran` })}
         ${tile({ label: "Menunggu bayar", value: s.registrations.waiting, sub: `${s.participants.waiting} peserta · ${rupiah(s.money.outstanding)}`, cls: s.registrations.waiting ? "alert" : "", href: "#pendaftaran" })}
         ${tile({ label: "Peserta lunas", value: s.participants.paid, sub: `${s.registrations.paid} pendaftaran` })}
@@ -166,7 +166,7 @@
     const r = await GET(`/api/admin/registrations/${id}`);
     const total = r.participants.length * r.fee_per_person;
     const body = openDialog(`
-      <div class="dlg-head"><div style="display:grid;gap:6px"><span class="muted">Pendaftaran</span><h2 class="mono" style="font-family:var(--mono);font-size:1.4rem">${esc(r.code)}</h2></div>
+      <div class="dlg-head"><div style="display:grid;gap:2px"><span class="muted" style="font-size:12px">Pendaftaran</span><h2 class="mono" style="font-family:var(--mono);font-size:18px">${esc(r.code)}</h2></div>
         <div style="display:flex;gap:8px;align-items:center"><span class="pill ${r.status}">${STATUS[r.status]}</span><button class="btn ghost sm" data-close aria-label="Tutup">✕</button></div></div>
       <dl class="kv">
         <dt>Gereja</dt><dd>${esc(r.church.name)}${r.church.city ? ", " + esc(r.church.city) : ""}</dd>

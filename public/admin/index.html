@@ -7,33 +7,51 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="/admin/admin.css">
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 20 20"><path fill="currentColor" d="M9.3 2.3a1 1 0 0 1 1.4 0l7 6.6c.6.6.2 1.6-.7 1.6H16v6a1.5 1.5 0 0 1-1.5 1.5H12v-4.5a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1V18H5.5A1.5 1.5 0 0 1 4 16.5v-6H3c-.9 0-1.3-1-.7-1.6z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 20 20"><path fill="currentColor" d="M4.6 3h10.8c.7 0 1.3.4 1.5 1.1l1.6 5.4c.1.2.1.4.1.6V15a2 2 0 0 1-2 2H3.4a2 2 0 0 1-2-2v-4.9l.1-.6L3.1 4.1C3.3 3.4 3.9 3 4.6 3m-.5 6.5h3.1c.5 0 .8.3.9.7a2 2 0 0 0 3.8 0c.1-.4.4-.7.9-.7h3.1L14.7 5H5.3z"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 20 20"><path fill="currentColor" d="M4 3h10.5A1.5 1.5 0 0 1 16 4.5V6h.5A1.5 1.5 0 0 1 18 7.5v8a1.5 1.5 0 0 1-1.5 1.5H4a2.5 2.5 0 0 1-2.5-2.5v-9A2.5 2.5 0 0 1 4 3m0 2a.5.5 0 0 0 0 1h10V5zm10 5a1.5 1.5 0 1 0 0 3h2v-3z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 20 20"><path fill="currentColor" d="M7.5 3.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6m6.5 1a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5M1.5 15c0-2.5 2.7-4 6-4s6 1.5 6 4v1a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1zm13.4 2c.1-.3.1-.6.1-1v-1c0-1.3-.5-2.4-1.4-3.2 2.6.1 4.9 1.4 4.9 3.4v.8a1 1 0 0 1-1 1z"/></symbol>
+  <symbol id="i-church" viewBox="0 0 20 20"><path fill="currentColor" d="M9.3 1h1.4v2h1.8v1.4h-1.8v1.8l4.4 3.3c.3.2.4.5.4.8V17h1a.5.5 0 0 1 0 1h-4.5v-3.5a2 2 0 0 0-4 0V18H3.5a.5.5 0 0 1 0-1h1v-6.7c0-.3.1-.6.4-.8l4.4-3.3V4.4H7.5V3h1.8z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 20 20"><path fill="currentColor" d="M6 1.5a1 1 0 0 1 1 1V3h6v-.5a1 1 0 1 1 2 0V3h1a2 2 0 0 1 2 2v2H2V5a2 2 0 0 1 2-2h1v-.5a1 1 0 0 1 1-1M2 8.5h16V16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm10.7 2.8a.8.8 0 0 0-1.1-1.1L9 12.8l-1.1-1a.8.8 0 0 0-1.1 1.1l1.6 1.6c.3.3.8.3 1.1 0z"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 20 20"><path fill="currentColor" d="M5 2h10a1 1 0 0 1 1 1v1h1.5a1 1 0 0 1 1 1v1.5a4 4 0 0 1-3.8 4A5 5 0 0 1 11 13.4V15h2.5a1 1 0 0 1 1 1v1.5a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V16a1 1 0 0 1 1-1H9v-1.6a5 5 0 0 1-3.7-2.9A4 4 0 0 1 1.5 6.5V5a1 1 0 0 1 1-1H4V3a1 1 0 0 1 1-1M3 5.5v1a2.5 2.5 0 0 0 1.6 2.3A5 5 0 0 1 4 6.5v-1zm13 0v1q0 1.2-.6 2.3A2.5 2.5 0 0 0 17 6.5v-1z"/></symbol>
+  <symbol id="i-image" viewBox="0 0 20 20"><path fill="currentColor" d="M4 2.5h12A2.5 2.5 0 0 1 18.5 5v10a2.5 2.5 0 0 1-2.5 2.5H4A2.5 2.5 0 0 1 1.5 15V5A2.5 2.5 0 0 1 4 2.5m9 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M3.5 14.6V15c0 .3.2.5.5.5h12c.3 0 .5-.2.5-.5v-1.8l-3-2.7-2.5 2-4-4.2z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 20 20"><path fill="currentColor" d="M10 1.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17M7.6 4a7 7 0 0 0-4 5h3c.1-1.9.4-3.6 1-5m4.8 0c.6 1.4.9 3.1 1 5h3a7 7 0 0 0-4-5M10 3.6c-.6 1-1.3 3-1.4 5.4h2.8C11.3 6.6 10.6 4.6 10 3.6M3.6 11a7 7 0 0 0 4 5c-.6-1.4-.9-3.1-1-5zm5 0c.1 2.4.8 4.4 1.4 5.4.6-1 1.3-3 1.4-5.4zm4.8 0c-.1 1.9-.4 3.6-1 5a7 7 0 0 0 4-5z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 20 20"><path fill="currentColor" d="M12.5 1.5a6 6 0 1 1-1.9 11.7L9.3 14.5H7.5v1.8l-.7.7H5v1.8l-.7.7H2a.5.5 0 0 1-.5-.5v-2.3l.1-.4 5.9-5.9A6 6 0 0 1 12.5 1.5m1.5 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 20 20"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3.5 4h13a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1M7 17.5h6"/></symbol>
+  <symbol id="i-external" viewBox="0 0 20 20"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M11 3.5h5.5V9M16.5 3.5 9 11M14 12.5V16a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 4 16V7a.5.5 0 0 1 .5-.5H8"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 20 20"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M8 3.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1H8M13 6.5l3.5 3.5-3.5 3.5M16.5 10H8"/></symbol>
+</svg>
 <div id="app" class="app" hidden>
-  <header class="top">
-    <a class="brand" href="#ringkasan"><img src="/assets/logo.png" alt="" width="30" height="30" style="border-radius:50%;flex:none"> PPD Antiokhia <span class="tape sm">Backstage</span></a>
-    <div class="top-right">
-      <a class="btn sm wall-btn" href="/wallboard.html" target="_blank" rel="noopener" id="wallBtn">▣ Wallboard TV</a>
-      <a class="link" href="/" target="_blank" rel="noopener">Lihat website</a>
-      <span class="muted" id="whoami"></span>
-      <button class="btn ghost sm" id="logoutBtn" type="button">Keluar</button>
+  <aside class="side">
+    <a class="ws" href="#ringkasan" aria-label="PPD Antiokhia, ke Ringkasan"><img src="/assets/logo.png" alt="" width="32" height="32"><span><b>PPD Antiokhia</b><small id="whoami">Panitia</small></span></a>
+    <nav class="side-nav" aria-label="Menu admin">
+    <p class="side-group">UTAMA</p>
+    <a href="#ringkasan" data-nav="ringkasan"><svg aria-hidden="true"><use href="#i-home"/></svg><span>Ringkasan</span></a>
+    <a href="#pendaftaran" data-nav="pendaftaran"><svg aria-hidden="true"><use href="#i-inbox"/></svg><span>Pendaftaran</span> <span class="badge" id="navWaiting" hidden></span></a>
+    <a href="#keuangan" data-nav="keuangan"><svg aria-hidden="true"><use href="#i-wallet"/></svg><span>Keuangan</span></a>
+    <p class="side-group">PESERTA & ACARA</p>
+    <a href="#peserta" data-nav="peserta"><svg aria-hidden="true"><use href="#i-users"/></svg><span>Peserta &amp; QR</span></a>
+    <a href="#gereja" data-nav="gereja"><svg aria-hidden="true"><use href="#i-church"/></svg><span>Gereja</span></a>
+    <a href="#jadwal" data-nav="jadwal"><svg aria-hidden="true"><use href="#i-calendar"/></svg><span>Jadwal &amp; kehadiran</span></a>
+    <a href="#hasil" data-nav="hasil"><svg aria-hidden="true"><use href="#i-trophy"/></svg><span>Hasil &amp; lomba</span></a>
+    <p class="side-group">WEBSITE</p>
+    <a href="#galeri" data-nav="galeri"><svg aria-hidden="true"><use href="#i-image"/></svg><span>Galeri foto</span></a>
+    <a href="#konten" data-nav="konten"><svg aria-hidden="true"><use href="#i-globe"/></svg><span>Konten website</span></a>
+    <p class="side-group">PENGATURAN</p>
+    <a href="#akun" data-nav="akun"><svg aria-hidden="true"><use href="#i-key"/></svg><span>Akun &amp; scanner</span></a>
+    </nav>
+    <div class="side-foot">
+      <a href="/wallboard.html" target="_blank" rel="noopener" id="wallBtn"><svg aria-hidden="true"><use href="#i-tv"/></svg><span>Wallboard TV</span></a>
+      <a href="/" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-external"/></svg><span>Lihat website</span></a>
+      <button type="button" id="logoutBtn"><svg aria-hidden="true"><use href="#i-logout"/></svg><span>Keluar</span></button>
     </div>
-  </header>
-  <nav class="side" aria-label="Menu admin">
-    <a href="#ringkasan" data-nav="ringkasan">Ringkasan</a>
-    <a href="#pendaftaran" data-nav="pendaftaran">Pendaftaran <span class="badge" id="navWaiting" hidden></span></a>
-    <a href="#keuangan" data-nav="keuangan">Keuangan</a>
-    <a href="#peserta" data-nav="peserta">Peserta &amp; QR</a>
-    <a href="#gereja" data-nav="gereja">Gereja</a>
-    <a href="#jadwal" data-nav="jadwal">Jadwal &amp; kehadiran</a>
-    <a href="#hasil" data-nav="hasil">Hasil &amp; lomba</a>
-    <a href="#galeri" data-nav="galeri">Galeri foto</a>
-    <a href="#konten" data-nav="konten">Konten website</a>
-    <a href="#akun" data-nav="akun">Akun &amp; scanner</a>
-  </nav>
+  </aside>
   <main id="view" class="view" tabindex="-1"></main>
 </div>
 
