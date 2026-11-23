@@ -6,8 +6,8 @@
   "scope": "/scan/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B0907",
-  "theme_color": "#0B0907",
+  "background_color": "#F5F6F8",
+  "theme_color": "#FFFFFF",
   "lang": "id",
   "icons": [
     { "src": "/scan/icon-192.png", "sizes": "192x192", "type": "image/png" },
